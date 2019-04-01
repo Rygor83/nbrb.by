@@ -71,6 +71,31 @@ def reformat_date(date: str) -> str:
     return date
 
 
+def get_exchange_rate(c, d):
+    if c.upper() == 'BYN':
+        data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
+    else:
+        base_url = 'http://www.nbrb.by/API/ExRates/Rates'
+        if c and d:
+            d = reformat_date(d)
+            currency_code = get_config(c)
+            # Курс для определеной валюты на дату: http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
+            url = base_url + f"/{currency_code}?onDate={d}"
+        elif c:
+            # Курс для определенной валюты сегодня: http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
+            url = base_url + f"/{c}?ParamMode=2"
+        elif d:
+            d = reformat_date(d)
+            # Все курсы на определенную дату: http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
+            url = base_url + f"?onDate={d}&Periodicity=0"
+        else:
+            # Все курсы на сегодня: http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
+            url = base_url + '?Periodicity=0'
+        response = requests.get(url)
+        data = json.loads(response.text)
+    return data
+
+
 @click.group()
 def cli():
     """ Скрипт для получения данных с сайта нац. банка РБ """
@@ -105,35 +130,13 @@ def cur(c='', d=''):
 
     # TODO: вывод сообщения, что получили и на какую дату
 
-    base_url = 'http://www.nbrb.by/API/ExRates/Rates'
-
-    if c and d:
-        d = reformat_date(d)
-        currency_code = get_config(c)
-        # Курс для определеной валюты на дату: http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
-        url = base_url + f"/{currency_code}?onDate={d}"
-    elif c:
-        # Курс для определенной валюты сегодня: http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
-        url = base_url + f"/{c}?ParamMode=2"
-    elif d:
-        d = reformat_date(d)
-        # Все курсы на определенную дату: http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
-        url = base_url + f"?onDate={d}&Periodicity=0"
-    else:
-        # Все курсы на сегодня: http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
-        url = base_url + '?Periodicity=0'
-
-    response = requests.get(url)
-
-    data = json.loads(response.text)
+    data = get_exchange_rate(c, d)
     info = []
     if isinstance(data, list):
         for item in data:
             info.append([item['Cur_Abbreviation'], item['Cur_OfficialRate'], item['Cur_Scale']])
     elif isinstance(data, dict):
         info.append([data['Cur_Abbreviation'], data['Cur_OfficialRate'], data['Cur_Scale']])
-
-    print('')
     print_sys_table(info)
     input('нажмите Enter ...')
 
@@ -170,7 +173,16 @@ def ref(d, all):
 def calc(amount, cur_from, cur_to, d=''):
     """ Перерасчет валют """
 
-    print(amount, cur_from, cur_to, d)
+    data_from = get_exchange_rate(cur_from, d)
+    data_to = get_exchange_rate(cur_to, d)
+
+    amount_calc = float(amount) * (float(data_from['Cur_OfficialRate']) * float(data_to['Cur_Scale'])) / (
+            float(data_to['Cur_OfficialRate']) * float(data_from['Cur_Scale']))
+    header = ['Сумма из', 'Валюта из', '  =  ', 'Сумма в', 'Валюта в']
+    t = PrettyTable(header)
+    row = [amount, str(cur_from).upper(), '=', amount_calc, str(cur_to).upper()]
+    t.add_row(row)
+    click.echo(t)
     input('нажмите Enter ...')
 
 
