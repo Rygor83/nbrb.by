@@ -6,15 +6,18 @@ import requests
 from prettytable import PrettyTable
 import datetime
 import sys
+import re
 
 
-def print_sys_table(systems: list):
+def print_sys_table(systems: list, text: str):
     header = ['Единица валюты', 'Валюта', '  =  ', 'Курс', 'BYN']
     t = PrettyTable(header)
+    t.title = text
+    t.align['Единица валюты'] = 'r'
     for system in systems:
         row = [system[2], system[0], '=', system[1], 'BYN']
         t.add_row(row)
-    click.echo(t)
+    print(t)
 
 
 def get_config(currency):
@@ -44,40 +47,51 @@ def check_existence(file_extension) -> bool:
         return file_exists
 
 
-def reformat_date(date: str) -> str:
-    # Допустимый ввод данных:
-    #   01.01.19 (возможный разделитель ./)
-    #   01.01.2019
-    #   010119
-    #   01012019
+def reformat_date(date: str, nbrb: bool = '') -> str:
+    """
+    Форматирует полученную на входе дату или для сайта nbrb.by, или же дату в нормальном виде с разделителями точка.
+    Допустимый ввод данных: 01.01.19 (допустимый разделитель ./), 01.01.2019, 010119, 01012019
+    :param date: Дата
+    :param nbrb: True - дата форматируется для сайта nbrb.by, False - обычная дата с разделитерями точно
+    :return: дата, в зависимости от параметра nbrb
+    """
 
-    if '.' in date:
-        delimiter = '.'
-        elements = str(date).split(delimiter)
-        date = f"{elements[2]}-{elements[1]}-{elements[0]}"
-    elif '/' in date:
-        delimiter = '/'
-        elements = str(date).split(delimiter)
-        date = f"{elements[2]}-{elements[1]}-{elements[0]}"
+    delimiters = ['.', '/', '-']
+
+    if any(delimiter in date for delimiter in delimiters):
+        regex_pattern = '|'.join(map(re.escape, delimiters))
+        elements = re.split(regex_pattern, date)  # r"/|\."
+        if nbrb:
+            date = f"{elements[2]}-{elements[1]}-{elements[0]}"
+        else:
+            date = f"{elements[0]}.{elements[1]}.{elements[2]}"
     else:
         length = len(date)
         if length == 6:
-            date = f"20{date[4:6]}-{date[2:4]}-{date[0:2]}"
+            if nbrb:
+                date = f"20{date[4:6]}-{date[2:4]}-{date[0:2]}"
+            else:
+                date = f"{date[0:2]}.{date[2:4]}.20{date[4:6]}"
         elif length == 8:
-            date = f"{date[4:8]}-{date[2:4]}-{date[0:2]}"
+            if nbrb:
+                date = f"{date[4:8]}-{date[2:4]}-{date[0:2]}"
+            else:
+                date = f"{date[0:2]}.{date[2:4]}.{date[4:8]}"
         else:
-            pass
+            print('Не правильная дата')
+            input('нажмите Enter ... ')
+            sys.exit()
 
     return date
 
 
 def get_exchange_rate(c, d):
-    if c.upper() == 'BYN':
+    if c is not None and c.upper() == 'BYN':
         data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
     else:
         base_url = 'http://www.nbrb.by/API/ExRates/Rates'
         if c and d:
-            d = reformat_date(d)
+            d = reformat_date(d, True)
             currency_code = get_config(c)
             # Курс для определеной валюты на дату: http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
             url = base_url + f"/{currency_code}?onDate={d}"
@@ -85,7 +99,7 @@ def get_exchange_rate(c, d):
             # Курс для определенной валюты сегодня: http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
             url = base_url + f"/{c}?ParamMode=2"
         elif d:
-            d = reformat_date(d)
+            d = reformat_date(d, True)
             # Все курсы на определенную дату: http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
             url = base_url + f"?onDate={d}&Periodicity=0"
         else:
@@ -122,22 +136,32 @@ def ini():
             config.write(configfile)
 
 
-@cli.command('cur')
-@click.option('-c', help='Валюта')
+@cli.command('kurs')
+@click.argument('currency', required=False)
 @click.option('-d', help='Дата запроса')
-def cur(c='', d=''):
-    """ Курсы валютю """
+def kurs(currency='', d=''):
+    """ Курсы валют """
 
-    # TODO: вывод сообщения, что получили и на какую дату
+    # TODO: вывод основных валют ?
 
-    data = get_exchange_rate(c, d)
+    data = get_exchange_rate(currency, d)
     info = []
     if isinstance(data, list):
         for item in data:
             info.append([item['Cur_Abbreviation'], item['Cur_OfficialRate'], item['Cur_Scale']])
     elif isinstance(data, dict):
         info.append([data['Cur_Abbreviation'], data['Cur_OfficialRate'], data['Cur_Scale']])
-    print_sys_table(info)
+
+    if currency and d:
+        text = f"Информация для {currency.upper()} на {reformat_date(d)}"
+    elif currency:
+        text = f"Информация для {currency.upper()} на текущую дату: "
+    elif d:
+        text = f"Информация для всех валют на {reformat_date(d)}: "
+    else:
+        text = 'Информация для всех валют на текущую дату'
+
+    print_sys_table(info, text)
     input('нажмите Enter ...')
 
 
@@ -150,7 +174,7 @@ def ref(d, all):
     base_url = 'http://www.nbrb.by/API/RefinancingRate'
 
     if d:
-        d = reformat_date(d)
+        d = reformat_date(d, True)
         url = base_url + f"?onDate={d}"
     elif all:
         url = base_url
