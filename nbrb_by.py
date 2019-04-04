@@ -189,8 +189,17 @@ def ref(d, all):
         url = base_url + f"?onDate={today:%Y-%m-%d}"
 
     data = retrieve_data_from_url(url)
+
+    header = ['Дата', 'Значение']
+    t = PrettyTable(header)
+    t.title = 'Ставка рефинансирования РБ'
+
     for item in data:
-        print(item['Date'], ':', item['Value'])
+        elements = str(str(item['Date']).split('T')[0]).split('-')
+        date = f"{elements[2]}.{elements[1]}.{elements[0]}"
+        row = [date,  item['Value']]
+        t.add_row(row)
+    print(t)
     input('нажмите Enter ...')
 
 
