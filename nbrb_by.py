@@ -8,6 +8,8 @@ import datetime
 import sys
 import re
 
+ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
+
 
 def print_sys_table(systems: list, text: str):
     header = ['Единица валюты', 'Валюта', '  =  ', 'Курс', 'BYN']
@@ -21,9 +23,8 @@ def print_sys_table(systems: list, text: str):
 
 
 def get_config(currency):
-    ini_file = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
-    if os.path.isfile(ini_file) and os.stat(ini_file).st_size != 0:
-        path = os.path.join(os.path.dirname(__file__), ini_file)
+    if os.path.isfile(ini_file_path) and os.stat(ini_file_path).st_size != 0:
+        path = os.path.join(os.path.dirname(__file__), ini_file_path)
     else:
         print('Не удалось получить нужные параметры т.к. ini файла не существует.')
         print('Для создания запустите команду "ini" и укажите в созданном файле все требуетмые параметры')
@@ -105,8 +106,13 @@ def get_exchange_rate(c, d):
         else:
             # Все курсы на сегодня: http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
             url = base_url + '?Periodicity=0'
-        response = requests.get(url)
-        data = json.loads(response.text)
+        data = retrieve_data_from_url(url)
+    return data
+
+
+def retrieve_data_from_url(url):
+    response = requests.get(url)
+    data = json.loads(response.text)
     return data
 
 
@@ -117,7 +123,7 @@ def cli():
 
 @cli.command('ini')
 def ini():
-    """ Создание конфигурационного ini файла """
+    """ Создание конфигурационного ini файла, где сопоставляются ISO коды валют (USD) с внутренними кодами нац. банка"""
 
     file_exists = check_existence('.ini')
 
@@ -132,7 +138,7 @@ def ini():
                                currencies}
         config['CURRENCY'] = currency_dictionary
 
-        with open(f"{os.path.splitext(os.path.basename(__file__))[0]}.ini", 'w') as configfile:
+        with open(ini_file_path, 'w') as configfile:
             config.write(configfile)
 
 
@@ -182,8 +188,7 @@ def ref(d, all):
         today = datetime.datetime.today()
         url = base_url + f"?onDate={today:%Y-%m-%d}"
 
-    response = requests.get(url)
-    data = json.loads(response.text)
+    data = retrieve_data_from_url(url)
     for item in data:
         print(item['Date'], ':', item['Value'])
     input('нажмите Enter ...')
@@ -200,10 +205,14 @@ def calc(amount, cur_from, cur_to, d=''):
     data_from = get_exchange_rate(cur_from, d)
     data_to = get_exchange_rate(cur_to, d)
 
-    amount_calc = float(amount) * (float(data_from['Cur_OfficialRate']) * float(data_to['Cur_Scale'])) / (
-            float(data_to['Cur_OfficialRate']) * float(data_from['Cur_Scale']))
+    amount_calc = round(float(amount) * (float(data_from['Cur_OfficialRate']) * float(data_to['Cur_Scale'])) / (
+            float(data_to['Cur_OfficialRate']) * float(data_from['Cur_Scale'])), 2)
     header = ['Сумма из', 'Валюта из', '  =  ', 'Сумма в', 'Валюта в']
     t = PrettyTable(header)
+    if d:
+        t.title = f"Перерасчет на {reformat_date(d)}"
+    else:
+        t.title = f"Перерасчет на текущую дату"
     row = [amount, str(cur_from).upper(), '=', amount_calc, str(cur_to).upper()]
     t.add_row(row)
     click.echo(t)
