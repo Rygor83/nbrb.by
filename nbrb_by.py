@@ -111,9 +111,24 @@ def get_exchange_rate(c, d):
 
 
 def retrieve_data_from_url(url):
-    response = requests.get(url)
-    data = json.loads(response.text)
-    return data
+    try:
+        response = requests.get(url)
+    except requests.exceptions.RequestException as e:
+        print(e)
+        input('нажмите Enter ...')
+        sys.exit(1)
+
+    if response.status_code == 200 and response.text != '[]':
+        data = json.loads(response.text)
+        return data
+    else:
+        if response.text == '[]':
+            print('По указанным данным ничего не найдено.')
+        else:
+            print('Произошла ошибка: ', response.status_code, response.reason)
+
+        input('нажмите Enter ...')
+        sys.exit(1)
 
 
 @click.group()
@@ -197,7 +212,7 @@ def ref(d, all):
     for item in data:
         elements = str(str(item['Date']).split('T')[0]).split('-')
         date = f"{elements[2]}.{elements[1]}.{elements[0]}"
-        row = [date,  item['Value']]
+        row = [date, item['Value']]
         t.add_row(row)
     print(t)
     input('нажмите Enter ...')
