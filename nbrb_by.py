@@ -3,6 +3,7 @@ import configparser
 import os
 import json
 import requests
+from requests.exceptions import HTTPError
 from prettytable import PrettyTable
 import datetime
 import sys
@@ -87,6 +88,7 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
 
 
 def get_exchange_rate(c, d):
+    # TODO: переписать через parameters в функции get
     if c is not None and c.upper() == 'BYN':
         data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
     else:
@@ -113,22 +115,18 @@ def get_exchange_rate(c, d):
 def retrieve_data_from_url(url):
     try:
         response = requests.get(url)
-    except requests.exceptions.RequestException as e:
-        print(e)
+        response.raise_for_status()
+    except HTTPError as http_err:
+        print(f'HTTP error occurred: {http_err}')
         input('нажмите Enter ...')
         sys.exit(1)
-
-    if response.status_code == 200 and response.text != '[]':
+    except Exception as err:
+        print(f"Other error occurred: {err}")
+        input('нажмите Enter ...')
+        sys.exit(1)
+    else:
         data = json.loads(response.text)
         return data
-    else:
-        if response.text == '[]':
-            print('По указанным данным ничего не найдено.')
-        else:
-            print('Произошла ошибка: ', response.status_code, response.reason)
-
-        input('нажмите Enter ...')
-        sys.exit(1)
 
 
 @click.group()
@@ -210,8 +208,7 @@ def ref(d, all):
     t.title = 'Ставка рефинансирования РБ'
 
     for item in data:
-        elements = str(str(item['Date']).split('T')[0]).split('-')
-        date = f"{elements[2]}.{elements[1]}.{elements[0]}"
+        date = datetime.datetime.strptime(item['Date'], "%Y-%m-%dT%H:%M:%S").strftime('%d.%m.%Y')
         row = [date, item['Value']]
         t.add_row(row)
     print(t)
