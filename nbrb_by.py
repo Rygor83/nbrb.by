@@ -9,17 +9,29 @@ import datetime
 import sys
 import re
 
+# TODO Получение динамики развития курсов:
+#     http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
+
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
 
 
 def print_sys_table(systems: list, text: str):
-    header = ['Единица валюты', 'Валюта', '  =  ', 'Курс', 'BYN']
-    t = PrettyTable(header)
-    t.title = text
-    t.align['Единица валюты'] = 'r'
-    for system in systems:
-        row = [system[2], system[0], '=', system[1], 'BYN']
-        t.add_row(row)
+    if len(systems[0]) == 3:
+        header = ['Единица валюты', 'Валюта', '  =  ', 'Курс', 'BYN']
+        t = PrettyTable(header)
+        t.title = text
+        t.align['Единица валюты'] = 'r'
+        for system in systems:
+            row = [system[2], system[0], '=', system[1], 'BYN']
+            t.add_row(row)
+    elif len(systems[0]) == 2:
+        header = ['Дата', 'Курс']
+        t = PrettyTable(header)
+        t.title = text
+        t.align['Курс'] = 'l'
+        for system in systems:
+            row = [system[0], system[1]]
+            t.add_row(row)
     print(t)
 
 
@@ -87,26 +99,37 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
     return date
 
 
-def get_exchange_rate(c, d):
+def get_exchange_rate(c, d, to=''):
     # TODO: переписать через parameters в функции get
     if c is not None and c.upper() == 'BYN':
         data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
     else:
         base_url = 'http://www.nbrb.by/API/ExRates/Rates'
-        if c and d:
+        if to:
+            currency_code = get_config(c)
+            # Курсы за определенный период:
+            # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
+            date_from = reformat_date(d, True)
+            date_to = reformat_date(to, True)
+            url = base_url + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
+        elif c and d:
             d = reformat_date(d, True)
             currency_code = get_config(c)
-            # Курс для определеной валюты на дату: http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
+            # Курс для определеной валюты на дату:
+            # http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
             url = base_url + f"/{currency_code}?onDate={d}"
         elif c:
-            # Курс для определенной валюты сегодня: http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
+            # Курс для определенной валюты сегодня:
+            # http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
             url = base_url + f"/{c}?ParamMode=2"
         elif d:
             d = reformat_date(d, True)
-            # Все курсы на определенную дату: http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
+            # Все курсы на определенную дату:
+            # http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
             url = base_url + f"?onDate={d}&Periodicity=0"
         else:
-            # Все курсы на сегодня: http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
+            # Все курсы на сегодня:
+            # http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
             url = base_url + '?Periodicity=0'
         data = retrieve_data_from_url(url)
     return data
@@ -155,38 +178,55 @@ def ini():
             config.write(configfile)
 
 
-@cli.command('kurs')
+@cli.command('rate')
 @click.argument('currency', required=False)
-@click.option('-d', help='Дата запроса')
-def kurs(currency='', d=''):
-    """ Курсы валют """
+@click.option('-d', help='Дата, на которую хотим получить курс. Используется совместо с указаниева валюты,\
+ для которой хотим получить курс')
+@click.option('-all', is_flag=True, help='Получить курсы на текущую дату для всех валют')
+def rate(currency='', d='', all=''):
+    """
+    Курсы валют
+
+    Опционный параметр:
+    currency: Валюта, для которой хотим получить курс.
+    """
 
     # TODO: вывод основных валют ?
 
-    data = get_exchange_rate(currency, d)
     info = []
-    if isinstance(data, list):
+    if all:
+        date_from = input('Введите дату "С": ')
+        date_to = input('Введите дату "По": ')
+        # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
+        data = get_exchange_rate(currency, date_from, date_to)
         for item in data:
-            info.append([item['Cur_Abbreviation'], item['Cur_OfficialRate'], item['Cur_Scale']])
-    elif isinstance(data, dict):
-        info.append([data['Cur_Abbreviation'], data['Cur_OfficialRate'], data['Cur_Scale']])
-
-    if currency and d:
-        text = f"Информация для {currency.upper()} на {reformat_date(d)}"
-    elif currency:
-        text = f"Информация для {currency.upper()} на текущую дату: "
-    elif d:
-        text = f"Информация для всех валют на {reformat_date(d)}: "
+            info.append([datetime.datetime.strptime(item['Date'], "%Y-%m-%dT%H:%M:%S").strftime('%d.%m.%Y'),
+                         item['Cur_OfficialRate']])
+        text = f"Курс {currency.upper()} c {reformat_date(date_from)} по {reformat_date(date_to)}"
     else:
-        text = 'Информация для всех валют на текущую дату'
+        data = get_exchange_rate(currency, d)
+        if isinstance(data, list):
+            for item in data:
+                info.append([item['Cur_Abbreviation'], item['Cur_OfficialRate'], item['Cur_Scale']])
+        elif isinstance(data, dict):
+            info.append([data['Cur_Abbreviation'], data['Cur_OfficialRate'], data['Cur_Scale']])
+
+        if currency and d:
+            text = f"Информация для {currency.upper()} на {reformat_date(d)}"
+        elif currency:
+            text = f"Информация для {currency.upper()} на текущую дату: "
+        elif d:
+            text = f"Информация для всех валют на {reformat_date(d)}: "
+        else:
+            text = 'Информация для всех валют на текущую дату'
 
     print_sys_table(info, text)
     input('нажмите Enter ...')
 
 
 @cli.command('ref')
-@click.option('-d', help='дата')
-@click.option('-all', is_flag=True)
+@click.option('-d', help='Получить ставку на указанную дату')
+@click.option('-all', is_flag=True, help='Показать динамику изменений ставки')
 def ref(d, all):
     """ Ставка рефинансирования """
 
@@ -215,14 +255,22 @@ def ref(d, all):
     input('нажмите Enter ...')
 
 
-@cli.command('calc')
+@cli.command('conv')
 @click.argument('amount')
 @click.argument('cur_from')
 @click.argument('cur_to')
 @click.option('-d', help='Дата')
-def calc(amount, cur_from, cur_to, d=''):
-    """ Перерасчет валют """
+def conv(amount, cur_from, cur_to, d=''):
+    """
+    Перерасчет валют \n
+    Обязательные параметры: \n
+    amount: Сумма, из которой делаем перерасчет, например: 100 \n
+    cur_from: Валюта, из которой делаем перерасчет, например: USD \n
+    cur_to: Валюта, в которую нужно сделать перерасчет, например, EUR \n
+    Пример командной строки: 100 usd eur
+    """
 
+    # TODO: добавить флаг -all, чтобы перерасчитывать исходную валюту во все (возможно основные).
     data_from = get_exchange_rate(cur_from, d)
     data_to = get_exchange_rate(cur_to, d)
 
