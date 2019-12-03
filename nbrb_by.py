@@ -9,11 +9,10 @@ import datetime
 import sys
 import re
 
-# TODO Получение динамики развития курсов:
-#     http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
-
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
 
+
+# TODO: сделать флаг, чтобы вместо таблицы выводить график. Возможно динамический, чтобы можно было найти для курса - дату и наоборот.
 
 def print_sys_table(systems: list, text: str):
     if len(systems[0]) == 3:
@@ -160,6 +159,8 @@ def cli():
 @cli.command('ini')
 def ini():
     """ Создание конфигурационного ini файла, где сопоставляются ISO коды валют (USD) с внутренними кодами нац. банка"""
+
+    # TODO: Разобраться с валютами, когда они менялись. Например, до 2016 был BYR, а номер для USD с какого кода менялся.
 
     file_exists = check_existence('.ini')
 
