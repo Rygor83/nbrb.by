@@ -1,16 +1,13 @@
-import click
-import configparser
-import os
-import json
-import requests
-from requests.exceptions import HTTPError
-from prettytable import PrettyTable
 import datetime
-import sys
+import os
 import re
+import sys
+import click
+import pandas as pd
+from prettytable import PrettyTable
+from tabulate import tabulate
 
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
-
 
 # TODO: сделать флаг, чтобы вместо таблицы выводить график. Возможно динамический, чтобы можно было найти для курса - дату и наоборот.
 
@@ -34,7 +31,7 @@ def print_sys_table(systems: list, text: str):
     print(t)
 
 
-def get_config(currency):
+def get_config(currency, datum):
     if os.path.isfile(ini_file_path) and os.stat(ini_file_path).st_size != 0:
         path = os.path.join(os.path.dirname(__file__), ini_file_path)
     else:
@@ -42,13 +39,19 @@ def get_config(currency):
         print('Для создания запустите команду "ini" и укажите в созданном файле все требуетмые параметры')
         sys.exit()
 
-    config = configparser.ConfigParser()
-    read = config.read(path)
-    if not read:
-        print('Не удалось прочитать ini файл')
-        sys.exit()
-    else:
-        return config['CURRENCY'][currency]
+    date_to_compare = datetime.datetime.strptime(datum, '%Y-%m-%d').date()
+
+    currency = str(currency).upper()
+    data = pd.read_json(path, orient='records', convert_dates=False)
+    data['Cur_DateStart'] = pd.to_datetime(data['Cur_DateStart']).apply(lambda x: x.date())
+    data['Cur_DateEnd'] = pd.to_datetime(data['Cur_DateEnd']).apply(lambda x: x.date())
+
+    info = data[(data.Cur_Abbreviation == currency) &
+                (data.Cur_DateStart <= date_to_compare) &
+                (data.Cur_DateEnd >= date_to_compare)]
+
+    cur_id = info.iloc[0]['Cur_ID']
+    return cur_id
 
 
 def check_existence(file_extension) -> bool:
@@ -99,56 +102,49 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
 
 
 def get_exchange_rate(c, d, to=''):
-    # TODO: переписать через parameters в функции get
     if c is not None and c.upper() == 'BYN':
         data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
     else:
         base_url = 'http://www.nbrb.by/API/ExRates/Rates'
         if to:
-            currency_code = get_config(c)
             # Курсы за определенный период:
             # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
             date_from = reformat_date(d, True)
             date_to = reformat_date(to, True)
+            currency_code = get_config(c, date_from)
             url = base_url + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
+            orient = 'records'
         elif c and d:
             d = reformat_date(d, True)
-            currency_code = get_config(c)
+            currency_code = get_config(c, d)
             # Курс для определеной валюты на дату:
             # http://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
             url = base_url + f"/{currency_code}?onDate={d}"
+            orient = 'index'
         elif c:
             # Курс для определенной валюты сегодня:
             # http://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
             url = base_url + f"/{c}?ParamMode=2"
+            orient = 'index'
         elif d:
             d = reformat_date(d, True)
             # Все курсы на определенную дату:
             # http://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
             url = base_url + f"?onDate={d}&Periodicity=0"
+            orient = 'records'
         else:
             # Все курсы на сегодня:
             # http://www.nbrb.by/API/ExRates/Rates?Periodicity=0
             url = base_url + '?Periodicity=0'
-        data = retrieve_data_from_url(url)
+            orient = 'records'
+
+        data = retrieve_data_from_url(url, orient)
     return data
 
 
-def retrieve_data_from_url(url):
-    try:
-        response = requests.get(url)
-        response.raise_for_status()
-    except HTTPError as http_err:
-        print(f'HTTP error occurred: {http_err}')
-        input('нажмите Enter ...')
-        sys.exit(1)
-    except Exception as err:
-        print(f"Other error occurred: {err}")
-        input('нажмите Enter ...')
-        sys.exit(1)
-    else:
-        data = json.loads(response.text)
-        return data
+def retrieve_data_from_url(url, orient):
+    data = pd.read_json(url, orient=orient)
+    return data
 
 
 @click.group()
@@ -160,23 +156,10 @@ def cli():
 def ini():
     """ Создание конфигурационного ini файла, где сопоставляются ISO коды валют (USD) с внутренними кодами нац. банка"""
 
-    # TODO: Разобраться с валютами, когда они менялись. Например, до 2016 был BYR, а номер для USD с какого кода менялся.
-
-    file_exists = check_existence('.ini')
-
-    if file_exists:
-        print('ini файл уже существует.')
-    else:
-        config = configparser.ConfigParser()
-        response = requests.get('http://www.nbrb.by/API/ExRates/Currencies')
-        currencies = json.loads(response.text)
-
-        currency_dictionary = {str(currency['Cur_Abbreviation']).upper(): currency['Cur_ID'] for currency in
-                               currencies}
-        config['CURRENCY'] = currency_dictionary
-
-        with open(ini_file_path, 'w') as configfile:
-            config.write(configfile)
+    url = 'http://www.nbrb.by/API/ExRates/Currencies'
+    orient = 'records'
+    json_ini = retrieve_data_from_url(url, orient)
+    json_ini.to_json(ini_file_path, 'records')
 
 
 @cli.command('rate')
@@ -192,36 +175,17 @@ def rate(currency='', d='', all=''):
     currency: Валюта, для которой хотим получить курс.
     """
 
-    # TODO: вывод основных валют ?
+    #TODO: выводить график движенния курса при запросе
 
-    info = []
     if all:
         date_from = input('Введите дату "С": ')
         date_to = input('Введите дату "По": ')
         # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
         data = get_exchange_rate(currency, date_from, date_to)
-        for item in data:
-            info.append([datetime.datetime.strptime(item['Date'], "%Y-%m-%dT%H:%M:%S").strftime('%d.%m.%Y'),
-                         item['Cur_OfficialRate']])
-        text = f"Курс {currency.upper()} c {reformat_date(date_from)} по {reformat_date(date_to)}"
     else:
         data = get_exchange_rate(currency, d)
-        if isinstance(data, list):
-            for item in data:
-                info.append([item['Cur_Abbreviation'], item['Cur_OfficialRate'], item['Cur_Scale']])
-        elif isinstance(data, dict):
-            info.append([data['Cur_Abbreviation'], data['Cur_OfficialRate'], data['Cur_Scale']])
 
-        if currency and d:
-            text = f"Информация для {currency.upper()} на {reformat_date(d)}"
-        elif currency:
-            text = f"Информация для {currency.upper()} на текущую дату: "
-        elif d:
-            text = f"Информация для всех валют на {reformat_date(d)}: "
-        else:
-            text = 'Информация для всех валют на текущую дату'
-
-    print_sys_table(info, text)
+    print(tabulate(data, headers='keys', tablefmt='psql'))
     input('нажмите Enter ...')
 
 
@@ -242,17 +206,10 @@ def ref(d, all):
         today = datetime.datetime.today()
         url = base_url + f"?onDate={today:%Y-%m-%d}"
 
-    data = retrieve_data_from_url(url)
+    orient = 'records'
+    data = retrieve_data_from_url(url, orient)
 
-    header = ['Дата', 'Значение']
-    t = PrettyTable(header)
-    t.title = 'Ставка рефинансирования РБ'
-
-    for item in data:
-        date = datetime.datetime.strptime(item['Date'], "%Y-%m-%dT%H:%M:%S").strftime('%d.%m.%Y')
-        row = [date, item['Value']]
-        t.add_row(row)
-    print(t)
+    print(tabulate(data, headers='keys', tablefmt='psql'))
     input('нажмите Enter ...')
 
 
@@ -275,8 +232,14 @@ def conv(amount, cur_from, cur_to, d=''):
     data_from = get_exchange_rate(cur_from, d)
     data_to = get_exchange_rate(cur_to, d)
 
-    amount_calc = round(float(amount) * (float(data_from['Cur_OfficialRate']) * float(data_to['Cur_Scale'])) / (
-            float(data_to['Cur_OfficialRate']) * float(data_from['Cur_Scale'])), 2)
+    amount = float(amount)
+    cur_from = float(data_from.loc['Cur_OfficialRate'][0])
+    cur_to = float(data_to.loc['Cur_OfficialRate'][0])
+    scale_from = float(data_from.loc['Cur_Scale'][0])
+    scale_to = float(data_to.loc['Cur_Scale'][0])
+
+    amount_calc = amount * (cur_from * scale_to) / (cur_to * scale_from)
+
     header = ['Сумма из', 'Валюта из', '  =  ', 'Сумма в', 'Валюта в']
     t = PrettyTable(header)
     if d:

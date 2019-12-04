@@ -1,3 +1,5 @@
 Click
 PTable
 requests
+pandas
+matplotlib
