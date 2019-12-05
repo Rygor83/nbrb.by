@@ -9,6 +9,7 @@ from tabulate import tabulate
 
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
 
+
 # TODO: сделать флаг, чтобы вместо таблицы выводить график. Возможно динамический, чтобы можно было найти для курса - дату и наоборот.
 
 def print_sys_table(systems: list, text: str):
@@ -103,7 +104,9 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
 
 def get_exchange_rate(c, d, to=''):
     if c is not None and c.upper() == 'BYN':
-        data = {'Cur_Scale': 1, 'Cur_OfficialRate': 1}
+        frame = {"Cur_Abbreviation": "BYN", "Cur_ID": 1, "Cur_Name": "Беларуский рубль", "Cur_OfficialRate": 1,
+                 "Cur_Scale": 1, "Date": "2016-07-05T00:00:00"}
+        data = pd.DataFrame.from_dict(frame, orient='index')
     else:
         base_url = 'http://www.nbrb.by/API/ExRates/Rates'
         if to:
@@ -175,7 +178,7 @@ def rate(currency='', d='', all=''):
     currency: Валюта, для которой хотим получить курс.
     """
 
-    #TODO: выводить график движенния курса при запросе
+    # TODO: выводить график движенния курса при запросе
 
     if all:
         date_from = input('Введите дату "С": ')
@@ -233,12 +236,12 @@ def conv(amount, cur_from, cur_to, d=''):
     data_to = get_exchange_rate(cur_to, d)
 
     amount = float(amount)
-    cur_from = float(data_from.loc['Cur_OfficialRate'][0])
-    cur_to = float(data_to.loc['Cur_OfficialRate'][0])
+    rate_from = float(data_from.loc['Cur_OfficialRate'][0])
+    rate_to = float(data_to.loc['Cur_OfficialRate'][0])
     scale_from = float(data_from.loc['Cur_Scale'][0])
     scale_to = float(data_to.loc['Cur_Scale'][0])
 
-    amount_calc = amount * (cur_from * scale_to) / (cur_to * scale_from)
+    amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
 
     header = ['Сумма из', 'Валюта из', '  =  ', 'Сумма в', 'Валюта в']
     t = PrettyTable(header)
