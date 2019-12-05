@@ -1,5 +1,4 @@
-Click
-PTable
-requests
+click
 pandas
 matplotlib
+tabulate

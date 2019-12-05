@@ -4,32 +4,10 @@ import re
 import sys
 import click
 import pandas as pd
-from prettytable import PrettyTable
 from tabulate import tabulate
+import matplotlib.pyplot as plt
 
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
-
-
-# TODO: сделать флаг, чтобы вместо таблицы выводить график. Возможно динамический, чтобы можно было найти для курса - дату и наоборот.
-
-def print_sys_table(systems: list, text: str):
-    if len(systems[0]) == 3:
-        header = ['Единица валюты', 'Валюта', '  =  ', 'Курс', 'BYN']
-        t = PrettyTable(header)
-        t.title = text
-        t.align['Единица валюты'] = 'r'
-        for system in systems:
-            row = [system[2], system[0], '=', system[1], 'BYN']
-            t.add_row(row)
-    elif len(systems[0]) == 2:
-        header = ['Дата', 'Курс']
-        t = PrettyTable(header)
-        t.title = text
-        t.align['Курс'] = 'l'
-        for system in systems:
-            row = [system[0], system[1]]
-            t.add_row(row)
-    print(t)
 
 
 def get_config(currency, datum):
@@ -38,6 +16,7 @@ def get_config(currency, datum):
     else:
         print('Не удалось получить нужные параметры т.к. ini файла не существует.')
         print('Для создания запустите команду "ini" и укажите в созданном файле все требуетмые параметры')
+        input('нажмите Enter ... ')
         sys.exit()
 
     date_to_compare = datetime.datetime.strptime(datum, '%Y-%m-%d').date()
@@ -51,17 +30,13 @@ def get_config(currency, datum):
                 (data.Cur_DateStart <= date_to_compare) &
                 (data.Cur_DateEnd >= date_to_compare)]
 
+    if info.empty:
+        print(f'Не удалось получить данные по валюте {str(currency).upper()}')
+        input('нажмите Enter ... ')
+        sys.exit()
+
     cur_id = info.iloc[0]['Cur_ID']
     return cur_id
-
-
-def check_existence(file_extension) -> bool:
-    if os.path.isfile(f"{os.path.splitext(os.path.basename(__file__))[0]}{file_extension}"):
-        file_exists = True
-        return file_exists
-    else:
-        file_exists = False
-        return file_exists
 
 
 def reformat_date(date: str, nbrb: bool = '') -> str:
@@ -72,6 +47,8 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
     :param nbrb: True - дата форматируется для сайта nbrb.by, False - обычная дата с разделитерями точно
     :return: дата, в зависимости от параметра nbrb
     """
+
+    # TODO: попробовать переделать через шаблоны аля %Y-%m-%d и через модуль datetime
 
     delimiters = ['.', '/', '-']
 
@@ -169,8 +146,9 @@ def ini():
 @click.argument('currency', required=False)
 @click.option('-d', help='Дата, на которую хотим получить курс. Используется совместо с указаниева валюты,\
  для которой хотим получить курс')
-@click.option('-all', is_flag=True, help='Получить курсы на текущую дату для всех валют')
-def rate(currency='', d='', all=''):
+@click.option('-all', is_flag=True, help='Получить курсы за перид')
+@click.option('-g', is_flag=True, help='Отрисовать график колебания курсов')
+def rate(currency='', d='', all='', g=''):
     """
     Курсы валют
 
@@ -184,11 +162,22 @@ def rate(currency='', d='', all=''):
         date_from = input('Введите дату "С": ')
         date_to = input('Введите дату "По": ')
         # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
-        data = get_exchange_rate(currency, date_from, date_to)
+        rate_info = get_exchange_rate(currency, date_from, date_to)
+        data = rate_info.loc[:, 'Date':'Cur_OfficialRate']
+        data.columns = ['Дата', f'Курс {str(currency).upper()}']
     else:
-        data = get_exchange_rate(currency, d)
+        rate_info = get_exchange_rate(currency, d)
+        info = [
+            {'Дата': rate_info.loc['Date'][0], f'Курс {str(currency).upper()}': rate_info.loc['Cur_OfficialRate'][0]}]
+        data = pd.DataFrame(info)
 
     print(tabulate(data, headers='keys', tablefmt='psql'))
+
+    if all and g:
+        ax = plt.gca()
+        data.plot(kind='line', x='Date', y='Cur_OfficialRate', ax=ax)
+        plt.show()
+
     input('нажмите Enter ...')
 
 
@@ -211,8 +200,14 @@ def ref(d, all):
 
     orient = 'records'
     data = retrieve_data_from_url(url, orient)
-
+    data.columns = ['Дата', 'Ставка Реф.']
     print(tabulate(data, headers='keys', tablefmt='psql'))
+
+    if all:
+        ax = plt.gca()
+        data.plot(kind='line', x='Date', y='Value', ax=ax)
+        plt.show()
+
     input('нажмите Enter ...')
 
 
@@ -232,6 +227,7 @@ def conv(amount, cur_from, cur_to, d=''):
     """
 
     # TODO: добавить флаг -all, чтобы перерасчитывать исходную валюту во все (возможно основные).
+
     data_from = get_exchange_rate(cur_from, d)
     data_to = get_exchange_rate(cur_to, d)
 
@@ -243,15 +239,11 @@ def conv(amount, cur_from, cur_to, d=''):
 
     amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
 
-    header = ['Сумма из', 'Валюта из', '  =  ', 'Сумма в', 'Валюта в']
-    t = PrettyTable(header)
-    if d:
-        t.title = f"Перерасчет на {reformat_date(d)}"
-    else:
-        t.title = f"Перерасчет на текущую дату"
-    row = [amount, str(cur_from).upper(), '=', amount_calc, str(cur_to).upper()]
-    t.add_row(row)
-    click.echo(t)
+    info = [{'Сумма из': amount, 'Валюта из': cur_from, '=': '=', 'Сумма в': amount_calc, 'Валюта в': cur_to}]
+    data = pd.DataFrame(info)
+    data.set_index('Сумма из')
+    print(tabulate(data, headers='keys', tablefmt='psql'))
+
     input('нажмите Enter ...')
 
 
