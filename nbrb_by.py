@@ -10,6 +10,10 @@ import matplotlib.pyplot as plt
 ini_file_path = f"{os.path.splitext(os.path.basename(__file__))[0]}.ini"
 
 
+def print_info(data):
+    print(tabulate(data, headers='keys', tablefmt='psql'))
+
+
 def get_config(currency, datum):
     if os.path.isfile(ini_file_path) and os.stat(ini_file_path).st_size != 0:
         path = os.path.join(os.path.dirname(__file__), ini_file_path)
@@ -171,11 +175,11 @@ def rate(currency='', d='', all='', g=''):
             {'Дата': rate_info.loc['Date'][0], f'Курс {str(currency).upper()}': rate_info.loc['Cur_OfficialRate'][0]}]
         data = pd.DataFrame(info)
 
-    print(tabulate(data, headers='keys', tablefmt='psql'))
+    print_info(data)
 
     if all and g:
         ax = plt.gca()
-        data.plot(kind='line', x='Date', y='Cur_OfficialRate', ax=ax)
+        data.plot(kind='line', x=data.columns[0], y=data.columns[1], ax=ax)
         plt.show()
 
     input('нажмите Enter ...')
@@ -184,7 +188,8 @@ def rate(currency='', d='', all='', g=''):
 @cli.command('ref')
 @click.option('-d', help='Получить ставку на указанную дату')
 @click.option('-all', is_flag=True, help='Показать динамику изменений ставки')
-def ref(d, all):
+@click.option('-g', is_flag=True, help='Отрисовать график колебания курсов')
+def ref(d, all, g):
     """ Ставка рефинансирования """
 
     base_url = 'http://www.nbrb.by/API/RefinancingRate'
@@ -201,11 +206,11 @@ def ref(d, all):
     orient = 'records'
     data = retrieve_data_from_url(url, orient)
     data.columns = ['Дата', 'Ставка Реф.']
-    print(tabulate(data, headers='keys', tablefmt='psql'))
+    print_info(data)
 
-    if all:
+    if all and g:
         ax = plt.gca()
-        data.plot(kind='line', x='Date', y='Value', ax=ax)
+        data.plot(kind='line', x=data.columns[0], y=data.columns[1], ax=ax)
         plt.show()
 
     input('нажмите Enter ...')
@@ -242,7 +247,7 @@ def conv(amount, cur_from, cur_to, d=''):
     info = [{'Сумма из': amount, 'Валюта из': cur_from, '=': '=', 'Сумма в': amount_calc, 'Валюта в': cur_to}]
     data = pd.DataFrame(info)
     data.set_index('Сумма из')
-    print(tabulate(data, headers='keys', tablefmt='psql'))
+    print_info(data)
 
     input('нажмите Enter ...')
 
