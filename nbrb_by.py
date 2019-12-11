@@ -52,29 +52,24 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
     :return: дата, в зависимости от параметра nbrb
     """
 
-    # TODO: попробовать переделать через шаблоны аля %Y-%m-%d и через модуль datetime
-
     delimiters = ['.', '/', '-']
 
     if any(delimiter in date for delimiter in delimiters):
-        regex_pattern = '|'.join(map(re.escape, delimiters))
-        elements = re.split(regex_pattern, date)  # r"/|\."
+        date = re.sub('[-.:/]', '.', date)
         if nbrb:
-            date = f"{elements[2]}-{elements[1]}-{elements[0]}"
-        else:
-            date = f"{elements[0]}.{elements[1]}.{elements[2]}"
+            date = datetime.datetime.strptime(date, '%d.%m.%Y').strftime('%Y-%m-%d')
     else:
         length = len(date)
         if length == 6:
             if nbrb:
-                date = f"20{date[4:6]}-{date[2:4]}-{date[0:2]}"
+                date = datetime.datetime.strptime(date, '%d%m%y').strftime('%Y-%m-%d')
             else:
-                date = f"{date[0:2]}.{date[2:4]}.20{date[4:6]}"
+                date = datetime.datetime.strptime(date, '%d%m%y').strftime('%d.%m.%Y')
         elif length == 8:
             if nbrb:
-                date = f"{date[4:8]}-{date[2:4]}-{date[0:2]}"
+                date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%Y-%m-%d')
             else:
-                date = f"{date[0:2]}.{date[2:4]}.{date[4:8]}"
+                date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%d.%m.%Y')
         else:
             print('Не правильная дата')
             input('нажмите Enter ... ')
@@ -160,17 +155,17 @@ def rate(currency='', d='', all='', g=''):
     currency: Валюта, для которой хотим получить курс.
     """
 
-    # TODO: выводить график движенния курса при запросе
-
     if all:
         date_from = input('Введите дату "С": ')
         date_to = input('Введите дату "По": ')
         # http://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
         rate_info = get_exchange_rate(currency, date_from, date_to)
+        rate_info['Date'] = pd.to_datetime(rate_info['Date']).dt.strftime('%d.%m.%Y')
         data = rate_info.loc[:, 'Date':'Cur_OfficialRate']
         data.columns = ['Дата', f'Курс {str(currency).upper()}']
     else:
         rate_info = get_exchange_rate(currency, d)
+        rate_info.loc['Date'] = pd.to_datetime(rate_info.loc['Date']).dt.strftime('%d.%m.%Y')
         info = [
             {'Дата': rate_info.loc['Date'][0], f'Курс {str(currency).upper()}': rate_info.loc['Cur_OfficialRate'][0]}]
         data = pd.DataFrame(info)
@@ -205,6 +200,7 @@ def ref(d, all, g):
 
     orient = 'records'
     data = retrieve_data_from_url(url, orient)
+    data['Date'] = pd.to_datetime(data['Date']).dt.strftime('%d.%m.%Y')
     data.columns = ['Дата', 'Ставка Реф.']
     print_info(data)
 
@@ -244,7 +240,8 @@ def conv(amount, cur_from, cur_to, d=''):
 
     amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
 
-    info = [{'Сумма из': amount, 'Валюта из': cur_from, '=': '=', 'Сумма в': amount_calc, 'Валюта в': cur_to}]
+    info = [{'Сумма из': amount, 'Валюта из': str(cur_from).upper(), '=': '=', 'Сумма в': amount_calc,
+             'Валюта в': str(cur_to).upper()}]
     data = pd.DataFrame(info)
     data.set_index('Сумма из')
     print_info(data)
