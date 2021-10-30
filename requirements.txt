@@ -1,4 +1,4 @@
 click
 pandas
-matplotlib
-tabulate
+setuptools
+appdirs
