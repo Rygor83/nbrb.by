@@ -22,7 +22,7 @@ def reformat_date(date: str, nbrb: bool = '') -> str:
     delimiters = ['.', '/', '-']
 
     if any(delimiter in date for delimiter in delimiters):
-        date = re.sub('[-.:/]', '../..', date)
+        date = re.sub('[-.:/]', '.', date)
         if nbrb:
             date = datetime.datetime.strptime(date, '%d.%m.%Y').strftime('%Y-%m-%d')
     else:
