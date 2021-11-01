@@ -1,21 +1,24 @@
 import click
 import pandas as pd
-import tabulate
 from nbrb_by.api import Api
 
 
 @click.group()
 def cli():
-    """ Скрипт для получения данных с сайта нац. банка РБ """
+    """
+    Windows Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
+    against foreign currencies established by the National Bank of the Republic of Belarus
+    """
 
 
 @cli.command('ref')
-@click.option('-d', help='Получить ставку на указанную дату')
-@click.option('-all', is_flag=True, help='Показать динамику изменений ставки')
-def ref(d, all):
-    """ Ставка рефинансирования """
+@click.option('-d', '--date', 'date',
+              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+@click.option('-all', is_flag=True, help='Get all Refinance rates', type=click.BOOL)
+def ref(date, all):
+    """ Refinance rate """
     api = Api()
-    dt = api.get_refinance(d, all)
+    dt = api.get_refinance(date, all)
     print(dt)
 
 
@@ -23,20 +26,21 @@ def ref(d, all):
 @click.argument('amount')
 @click.argument('cur_from')
 @click.argument('cur_to')
-@click.option('-d', help='Дата')
-def conv(amount, cur_from, cur_to, d=''):
+@click.option('-d', '--date', 'date',
+              help='Recalculation date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+def conv(amount, cur_from, cur_to, date=''):
     """
-    Перерасчет валют \n
-    Обязательные параметры: \n
-    amount: Сумма, из которой делаем перерасчет, например: 100 \n
-    cur_from: Валюта, из которой делаем перерасчет, например: USD \n
-    cur_to: Валюта, в которую нужно сделать перерасчет, например, EUR \n
-    Пример командной строки: 100 usd eur
+    Exchange rates \n
+    Required parameters: \n
+    AMOUNT: The amount from which we recalculate, for example: 100 \n
+    CUR_FROM: The currency from which we are recalculating, for example: USD \n
+    CUR_TO: Currency to be converted into, for example, EUR \n
+    Example: nb conv 100 usd eur
     """
     api = Api()
 
-    data_from = api.get_rates(cur_from, d)
-    data_to = api.get_rates(cur_to, d)
+    data_from = api.get_rates(cur_from, date)
+    data_to = api.get_rates(cur_to, date)
 
     amount = float(amount)
     rate_from = float(data_from.loc['Cur_OfficialRate'][0])
@@ -55,16 +59,13 @@ def conv(amount, cur_from, cur_to, d=''):
 
 @cli.command('rate')
 @click.argument('currency', required=False)
-@click.option('-d', help='Дата, на которую хотим получить курс. Используется совместо с указаниева валюты,\
- для которой хотим получить курс')
-@click.option('-all', is_flag=True, help='Получить курсы за перид')
-@click.option('-g', is_flag=True, help='Отрисовать график колебания курсов')
-def rate(currency='', d='', all='', g=''):
+@click.option('-d', help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+def rate(currency='', d=''):
     """
-    Курсы валют
+    Currency converter
 
-    Опционный параметр:
-    currency: Валюта, для которой хотим получить курс.
+    Optional parameter:
+    CURRENCY: Currency for which we want to get the exchange rate.
     """
 
     api = Api()

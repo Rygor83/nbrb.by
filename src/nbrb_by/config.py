@@ -10,11 +10,11 @@ import datetime
 import pandas as pd
 
 
-class Config():
+class Config:
 
-    def __init__(self, path=''):
+    def __init__(self, path='', ini_name=''):
         self.path = path if path != "" else user_data_dir("nbrb_by", appauthor=False)
-        self.ini_name = 'nbrb_config.ini'
+        self.ini_name = ini_name if ini_name != "" else 'nbrb_config.ini'
         self.config_path = os.path.join(self.set_path(path=self.path), self.ini_name)
 
         if not os.path.isfile(self.config_path):

@@ -31,7 +31,7 @@ class Api(object):
         self.cfg = config.Config()
 
     def get_rates(self, c, d, to=''):
-        func = self._get_function(c, d)
+        func = self._get_function(c, d, to)
         url_dict = self._get_api_rate_url(func, c, d)
         return self._get_json(**url_dict)
 
@@ -80,7 +80,7 @@ class Api(object):
 
         return func
 
-    def _get_api_rate_url(self, func: int, c, d, to='') -> str:
+    def _get_api_rate_url(self, func: int, c, d, to='') -> dict:
         """
         Method to construct api request url for exchange rates.
 

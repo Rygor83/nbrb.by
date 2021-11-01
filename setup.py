@@ -10,11 +10,10 @@ setup(
     name='nb',
     version='0.01',
     license='MIT',
-    description='Launch sap systems from saplogon with sapshcut.exe',
+    description="CMD. Info about exchange rates established by the National Bank of the Republic of Belarus",
 
     author='Rygor',
     author_email='pisemco@gmail.com',
-    url='http://rygor.by',
 
     packages=find_packages(where='src'),
     package_dir={'': 'src'},

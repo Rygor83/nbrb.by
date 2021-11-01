@@ -6,7 +6,7 @@ import os
 def test_create(tmpdir):
     cfg = Config(tmpdir)
     cfg.create()
-    assert os.path.isfile(cfg.config_path) == True
+    assert os.path.isfile(cfg.config_path) is True
 
 
 def test_read_usd_on_01112021(tmpdir):
