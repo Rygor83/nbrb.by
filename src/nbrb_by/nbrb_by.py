@@ -1,6 +1,7 @@
 import click
 import pandas as pd
 from nbrb_by.api import Api
+from tabulate import tabulate
 
 
 @click.group()
@@ -18,8 +19,10 @@ def cli():
 def ref(date, all):
     """ Refinance rate """
     api = Api()
-    dt = api.get_refinance(date, all)
-    print(dt)
+    df = api.get_refinance(date, all)
+    df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d.%m.%Y')
+    df = df.set_index('Date')
+    print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
 @cli.command('conv')
@@ -50,11 +53,11 @@ def conv(amount, cur_from, cur_to, date=''):
 
     amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
 
-    info = [{'Сумма из': amount, 'Валюта из': str(cur_from).upper(), '=': '=', 'Сумма в': amount_calc,
-             'Валюта в': str(cur_to).upper()}]
-    data = pd.DataFrame(info)
-    data.set_index('Сумма из')
-    print(data)
+    info = [{'Amount from': amount, 'Currency from': str(cur_from).upper(), '=': '=', 'Amount into': amount_calc,
+             'Currency into': str(cur_to).upper()}]
+    df = pd.DataFrame(info)
+    df = df.set_index('Amount from')
+    print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
 @cli.command('rate')
@@ -70,8 +73,15 @@ def rate(currency='', d=''):
 
     api = Api()
 
-    dt = api.get_rates(currency, d)
-    print(dt)
+    df_temp = api.get_rates(currency, d)
+
+    df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
+    info = [
+        {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
+    df = pd.DataFrame(info)
+    df = df.set_index('Date')
+
+    print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
 if __name__ == '__main__':
