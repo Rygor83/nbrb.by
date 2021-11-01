@@ -12,10 +12,12 @@ import pandas as pd
 
 class Config():
 
-    def __init__(self):
+    def __init__(self, path=''):
+        self.path = path if path != "" else user_data_dir("nbrb_by", appauthor=False)
         self.ini_name = 'nbrb_config.ini'
-        self.config_path = os.path.join(self.set_path, self.ini_name)
-        if not os.path.isfile(self.config_path) and os.stat(self.config_path).st_size != 0:
+        self.config_path = os.path.join(self.set_path(path=self.path), self.ini_name)
+
+        if not os.path.isfile(self.config_path):
             click.echo("Загружаю справочник валют")
             self.create()
 
@@ -44,9 +46,7 @@ class Config():
         json_ini = pd.read_json(url, orient=orient)
         json_ini.to_json(self.config_path, 'records')
 
-    @property
-    def set_path(self):
-        path = user_data_dir("nbrb_by", appauthor=False)
+    def set_path(self, path):
         if not os.path.exists(path):
             try:
                 os.makedirs(path)

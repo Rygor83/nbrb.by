@@ -1,81 +1,40 @@
 import pytest
-from nbrb_by.api import Api
+from click.testing import CliRunner
+from nbrb_by.nbrb_by import ref, conv, rate
 
 
 # --------------------------------------------------------
-# _PARSE_DATE method
+# REF command
 # --------------------------------------------------------
-def test_api_parse_date_01012021():
-    api = Api()
-    d = api._parse_date("01012021")
-    assert d == "01.01.2021"
-
-
-def test_api_parse_date_01012021_true():
-    api = Api()
-    d = api._parse_date("01012021", True)
-    assert d == "2021-01-01"
-
-
-def test_api_parse_date_010121():
-    api = Api()
-    d = api._parse_date("01012021")
-    assert d == "01.01.2021"
-
-
-def test_api_parse_date_010121_true():
-    api = Api()
-    d = api._parse_date("01012021", True)
-    assert d == "2021-01-01"
-
-
-def test_api_parse_date_with_delim_dot():
-    api = Api()
-    d = api._parse_date("01.01.2021")
-    assert d == "01.01.2021"
-
-
-def test_api_parse_date_with_delim_dot_true():
-    api = Api()
-    d = api._parse_date("01.01.2021", True)
-    assert d == "2021-01-01"
+def test_ref_on_01072021():
+    runner = CliRunner()
+    result = runner.invoke(ref, "-d 01072021")
+    check_value = "        Date  Value\n0 2021-04-21    8.5\n"
+    assert result.output == check_value
 
 
 # --------------------------------------------------------
-# _GET_FUNCTION method
+# RATE command
 # --------------------------------------------------------
-
-def test_api_get_function_9():
-    api = Api()
-    func = api._get_function('BYN')
-    assert func == 9
-
-
-def test_api_get_function_1():
-    api = Api()
-    func = api._get_function('USD', d='01.01.2021', to='31.12.2021')
-    assert func == 1
-
-
-def test_api_get_function_2():
-    api = Api()
-    func = api._get_function('EUR', d='01.01.2021')
-    assert func == 2
+def test_rate_usd_on_01112021():
+    runner = CliRunner()
+    result = runner.invoke(rate, "usd -d 01112021")
+    check_value = ('                                    0\n'
+                   'Cur_ID                            431\n'
+                   'Date              2021-11-01T00:00:00\n'
+                   'Cur_Abbreviation                  USD\n'
+                   'Cur_Scale                           1\n'
+                   'Cur_Name                   Доллар США\n'
+                   'Cur_OfficialRate               2.4226\n')
+    assert result.output == check_value
 
 
-def test_api_get_function_3():
-    api = Api()
-    func = api._get_function('GBP')
-    assert func == 3
-
-
-def test_api_get_function_4():
-    api = Api()
-    func = api._get_function(d='01.01.2021')
-    assert func == 4
-
-
-def test_api_get_function_5():
-    api = Api()
-    func = api._get_function()
-    assert func == 5
+# --------------------------------------------------------
+# CONV command
+# --------------------------------------------------------
+def test_conv_1_usd_byn_on_01112021():
+    runner = CliRunner()
+    result = runner.invoke(conv, "1 usd byn -d 01112021")
+    check_value = ('   Сумма из Валюта из  =  Сумма в Валюта в\n'
+                   '0       1.0       USD  =   2.4226      BYN\n')
+    assert result.output == check_value
