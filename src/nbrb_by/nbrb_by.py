@@ -15,8 +15,8 @@ def cli():
 def ref(d, all):
     """ Ставка рефинансирования """
     api = Api()
-    js = api.get_refinance(d, all)
-    print(js)
+    dt = api.get_refinance(d, all)
+    print(dt)
 
 
 @cli.command('conv')
@@ -69,8 +69,8 @@ def rate(currency='', d='', all='', g=''):
 
     api = Api()
 
-    js = api.get_rates(currency, d)
-    print(js)
+    dt = api.get_rates(currency, d)
+    print(dt)
 
 
 if __name__ == '__main__':

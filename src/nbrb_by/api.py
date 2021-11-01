@@ -36,6 +36,13 @@ class Api(object):
         return self._get_json(**url_dict)
 
     def get_refinance(self, d, all):
+        """
+        Obtaining info about refinance rate
+
+        :param d: date or no date
+        :param all: flag to obtain all rates from the beginning
+        :return: data frame with refinance rate info
+        """
         url_dict = self._get_api_refinance_url(d, all)
         return self._get_json(**url_dict)
 
@@ -74,6 +81,17 @@ class Api(object):
         return func
 
     def _get_api_rate_url(self, func: int, c, d, to='') -> str:
+        """
+        Method to construct api request url for exchange rates.
+
+        :param self:  self
+        :param func: 1 integer id of function
+        :param c:    3-letter currency code
+        :param d:    date from in needed format
+        :param to:   date to in needed format
+        :return: url
+        """
+
         if func == 9:
             self.url = 'BYN'
             self.orient = 'index'
@@ -112,14 +130,21 @@ class Api(object):
         return {"url": self.url, "orient": self.orient}
 
     def _get_api_refinance_url(self, d, all):
+        """
+        Method to construct api request url for refinancing rate.
+        :param self:  self
+        :param d:    date from in %Y-%m-%d format or no date
+        :param all:  flag to obtain all rates
+        :return: url
+        """
         if d:
             d = self._parse_date(d, True)
             self.url = self.API_BASE_REF_URL + f"?onDate={d}"
         elif all:
             self.url = self.API_BASE_REF_URL
         else:
-            today = datetime.datetime.today()
-            self.url = self.API_BASE_REF_URL + f"?onDate={today:%Y-%m-%d}"
+            today = self._parse_date()
+            self.url = self.API_BASE_REF_URL + f"?onDate={today}"
 
         self.orient = 'records'
 
@@ -135,10 +160,11 @@ class Api(object):
 
         return df
 
-    def _parse_date(self, date: str, nbrb: bool = '') -> str:
+    def _parse_date(self, date: str = '', nbrb: bool = '') -> str:
         """
         Форматирует полученную на входе дату или для сайта nbrb.by, или же дату в нормальном виде с разделителями точка.
         Допустимый ввод данных: 01.01.19 (допустимый разделитель ./), 01.01.2019, 010119, 01012019
+
         :param date: Дата
         :param nbrb: True - дата форматируется для сайта nbrb.by, False - обычная дата с разделитерями точно
         :return: дата, в зависимости от параметра nbrb
@@ -162,6 +188,8 @@ class Api(object):
                     date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%Y-%m-%d')
                 else:
                     date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%d.%m.%Y')
+            elif length == 0:
+                date = datetime.datetime.today().strftime('%Y-%m-%d')
             else:
                 print('Не правильная дата')
                 input('нажмите Enter ... ')
