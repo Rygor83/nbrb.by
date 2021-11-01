@@ -1,0 +1,6 @@
+click
+pandas
+appdirs
+tabulate
+pytest
+setuptools

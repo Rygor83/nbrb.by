@@ -1,136 +1,49 @@
-import datetime
 import click
 import pandas as pd
-import nbrb_by.utilities as utilities
-import nbrb_by.config as config
+from nbrb_by.api import Api
+from tabulate import tabulate
 
 
 @click.group()
 def cli():
-    """ Скрипт для получения данных с сайта нац. банка РБ """
-
-
-def get_exchange_rate(c, d, to=''):
-    cfg = config.Config()
-
-    if c is not None and c.upper() == 'BYN':
-        frame = {"Cur_Abbreviation": "BYN", "Cur_ID": 1, "Cur_Name": "Беларуский рубль", "Cur_OfficialRate": 1,
-                 "Cur_Scale": 1, "Date": "2016-07-05T00:00:00"}
-        data = pd.DataFrame.from_dict(frame, orient='index')
-    else:
-        base_url = 'https://www.nbrb.by/API/ExRates/Rates'
-        if to:
-            # Курсы за определенный период:
-            # https://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
-            date_from = utilities.reformat_date(d, True)
-            date_to = utilities.reformat_date(to, True)
-            currency_code = cfg.read(c, date_from)
-            url = base_url + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
-            orient = 'records'
-        elif c and d:
-            d = utilities.reformat_date(d, True)
-            currency_code = cfg.read(c, d)
-            # Курс для определеной валюты на дату:
-            # https://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
-            url = base_url + f"/{currency_code}?onDate={d}"
-            orient = 'index'
-        elif c:
-            # Курс для определенной валюты сегодня:
-            # https://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
-            url = base_url + f"/{c}?ParamMode=2"
-            orient = 'index'
-        elif d:
-            d = utilities.reformat_date(d, True)
-            # Все курсы на определенную дату:
-            # https://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
-            url = base_url + f"?onDate={d}&Periodicity=0"
-            orient = 'records'
-        else:
-            # Все курсы на сегодня:
-            # https://www.nbrb.by/API/ExRates/Rates?Periodicity=0
-            url = base_url + '?Periodicity=0'
-            orient = 'records'
-
-        data = utilities.retrieve_data_from_url(url, orient)
-    return data
-
-
-@cli.command('rate')
-@click.argument('currency', required=False)
-@click.option('-d', help='Дата, на которую хотим получить курс. Используется совместо с указаниева валюты,\
- для которой хотим получить курс')
-@click.option('-all', is_flag=True, help='Получить курсы за перид')
-@click.option('-g', is_flag=True, help='Отрисовать график колебания курсов')
-def rate(currency='', d='', all='', g=''):
     """
-    Курсы валют
-
-    Опционный параметр:
-    currency: Валюта, для которой хотим получить курс.
+    Windows Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
+    against foreign currencies established by the National Bank of the Republic of Belarus
     """
-
-    if all:
-        date_from = input('Введите дату "С": ')
-        date_to = input('Введите дату "По": ')
-        # https://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
-        rate_info = get_exchange_rate(currency, date_from, date_to)
-        rate_info['Date'] = pd.to_datetime(rate_info['Date']).dt.strftime('%d.%m.%Y')
-        data = rate_info.loc[:, 'Date':'Cur_OfficialRate']
-        data.columns = ['Дата', f'Курс {str(currency).upper()}']
-    else:
-        rate_info = get_exchange_rate(currency, d)
-        rate_info.loc['Date'] = pd.to_datetime(rate_info.loc['Date']).dt.strftime('%d.%m.%Y')
-        info = [
-            {'Дата': rate_info.loc['Date'][0], f'Курс {str(currency).upper()}': rate_info.loc['Cur_OfficialRate'][0]}]
-        data = pd.DataFrame(info)
-
-    utilities.print_info(data)
 
 
 @cli.command('ref')
-@click.option('-d', help='Получить ставку на указанную дату')
-@click.option('-all', is_flag=True, help='Показать динамику изменений ставки')
-@click.option('-g', is_flag=True, help='Отрисовать график колебания курсов')
-def ref(d, all, g):
-    """ Ставка рефинансирования """
-
-    base_url = 'https://www.nbrb.by/API/RefinancingRate'
-
-    if d:
-        d = utilities.reformat_date(d, True)
-        url = base_url + f"?onDate={d}"
-    elif all:
-        url = base_url
-    else:
-        today = datetime.datetime.today()
-        url = base_url + f"?onDate={today:%Y-%m-%d}"
-
-    orient = 'records'
-    data = utilities.retrieve_data_from_url(url, orient)
-    data['Date'] = pd.to_datetime(data['Date']).dt.strftime('%d.%m.%Y')
-    data.columns = ['Дата', 'Ставка Реф.']
-    utilities.print_info(data)
+@click.option('-d', '--date', 'date',
+              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+@click.option('-all', is_flag=True, help='Get all Refinance rates', type=click.BOOL)
+def ref(date, all):
+    """ Refinance rate """
+    api = Api()
+    df = api.get_refinance(date, all)
+    df['Date'] = pd.to_datetime(df['Date']).dt.strftime('%d.%m.%Y')
+    df = df.set_index('Date')
+    print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
 @cli.command('conv')
 @click.argument('amount')
 @click.argument('cur_from')
 @click.argument('cur_to')
-@click.option('-d', help='Дата')
-def conv(amount, cur_from, cur_to, d=''):
+@click.option('-d', '--date', 'date',
+              help='Recalculation date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+def conv(amount, cur_from, cur_to, date=''):
     """
-    Перерасчет валют \n
-    Обязательные параметры: \n
-    amount: Сумма, из которой делаем перерасчет, например: 100 \n
-    cur_from: Валюта, из которой делаем перерасчет, например: USD \n
-    cur_to: Валюта, в которую нужно сделать перерасчет, например, EUR \n
-    Пример командной строки: 100 usd eur
+    Exchange rates \n
+    Required parameters: \n
+    AMOUNT: The amount from which we recalculate, for example: 100 \n
+    CUR_FROM: The currency from which we are recalculating, for example: USD \n
+    CUR_TO: Currency to be converted into, for example, EUR \n
+    Example: nb conv 100 usd eur
     """
+    api = Api()
 
-    # TODO: добавить флаг -all, чтобы перерасчитывать исходную валюту во все (возможно основные).
-
-    data_from = get_exchange_rate(cur_from, d)
-    data_to = get_exchange_rate(cur_to, d)
+    data_from = api.get_rates(cur_from, date)
+    data_to = api.get_rates(cur_to, date)
 
     amount = float(amount)
     rate_from = float(data_from.loc['Cur_OfficialRate'][0])
@@ -140,11 +53,35 @@ def conv(amount, cur_from, cur_to, d=''):
 
     amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
 
-    info = [{'Сумма из': amount, 'Валюта из': str(cur_from).upper(), '=': '=', 'Сумма в': amount_calc,
-             'Валюта в': str(cur_to).upper()}]
-    data = pd.DataFrame(info)
-    data.set_index('Сумма из')
-    utilities.print_info(data)
+    info = [{'Amount from': amount, 'Currency from': str(cur_from).upper(), '=': '=', 'Amount into': amount_calc,
+             'Currency into': str(cur_to).upper()}]
+    df = pd.DataFrame(info)
+    df = df.set_index('Amount from')
+    print(tabulate(df, headers='keys', tablefmt='psql'))
+
+
+@cli.command('rate')
+@click.argument('currency', required=False)
+@click.option('-d', help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+def rate(currency='', d=''):
+    """
+    Currency converter
+
+    Optional parameter:
+    CURRENCY: Currency for which we want to get the exchange rate.
+    """
+
+    api = Api()
+
+    df_temp = api.get_rates(currency, d)
+
+    df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
+    info = [
+        {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
+    df = pd.DataFrame(info)
+    df = df.set_index('Date')
+
+    print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
 if __name__ == '__main__':
