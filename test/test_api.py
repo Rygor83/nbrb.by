@@ -7,36 +7,21 @@ def api():
     return Api()
 
 
+dates = {'01.01.2021', '01/01/2021', '01-01-2021', '01012021', '010121'}
+
+
 # --------------------------------------------------------
 # _PARSE_DATE method
 # --------------------------------------------------------
-def test_api_parse_date_01012021(api):
-    d = api._parse_date("01012021")
+@pytest.mark.parametrize("date", dates)
+def test_api_parse_all_dates_user_format(api, date):
+    d = api._parse_date(date)
     assert d == "01.01.2021"
 
 
-def test_api_parse_date_01012021_true(api):
-    d = api._parse_date("01012021", True)
-    assert d == "2021-01-01"
-
-
-def test_api_parse_date_010121(api):
-    d = api._parse_date("01012021")
-    assert d == "01.01.2021"
-
-
-def test_api_parse_date_010121_true(api):
-    d = api._parse_date("01012021", True)
-    assert d == "2021-01-01"
-
-
-def test_api_parse_date_with_delim_dot(api):
-    d = api._parse_date("01.01.2021")
-    assert d == "01.01.2021"
-
-
-def test_api_parse_date_with_delim_dot_true(api):
-    d = api._parse_date("01.01.2021", True)
+@pytest.mark.parametrize("date", dates)
+def test_api_parse_all_dates_nbrb_format(api, date):
+    d = api._parse_date(date, True)
     assert d == "2021-01-01"
 
 

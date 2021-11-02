@@ -31,17 +31,64 @@ Commands:
   ref   Refinance rate
 ```
 
-```
-Examples: nb rate usd
-Text appearing in the console: 2.4226
+## Examples
 
-Example: nb ref
-Text appearing in the console: 9.25
-
-Example: nb conv 100 usd eur
-Text appearing in the console: 100.0 USD = 85.807389 EUR
+### Exchange rates
 
 ```
+Usage: nb rate [OPTIONS] [CURRENCY]
+
+  Exchange rates
+
+Argument optional: CURRENCY: Currency for which we want to get the exchange rate. 
+                   If empty then retrieve all exchange rates.
+
+Options:
+  -d, --date TEXT  Get a rate on a date. Possible values: 01.01.2021,
+                   01/01/2021, 01-01-2021, 01012021, 010121. If empty then today date used.
+  --help           Show this message and exit.
+```
+
+![nb rate commands](resources/images/nb_rate_commands.jpg)
+
+### Currency converter
+
+```
+Usage: nb conv [OPTIONS] AMOUNT CUR_FROM CUR_TO
+
+  Currency converter
+
+  Required parameters:
+  AMOUNT: The amount from which we recalculate, for example: 100
+  CUR_FROM: The currency from which we are recalculating, for example: USD
+  CUR_TO: Currency to be converted into, for example, EUR
+
+  Example: nb conv 100 usd eur
+
+Options:
+  -d, --date TEXT  Conversion date. Possible values: 01.01.2021, 01/01/2021,
+                   01-01-2021, 01012021, 010121. If empty then date equal
+                   today
+  --help           Show this message and exit.
+```
+
+![nb conv commands](resources/images/nb_conv_commands.jpg)
+
+### Refinance rate
+
+```
+Usage: nb ref [OPTIONS]
+
+  Refinance rate
+
+Options:
+  -d, --date TEXT  Get a rate on a date. Possible values: 01.01.2021,
+                   01/01/2021, 01-01-2021, 01012021, 010121. If empty then today date used
+  -all             Get all Refinance rates
+  --help           Show this message and exit.
+```
+
+![nb ref commands](resources/images/nb_ref_commands.jpg)
 
 ## API help
 

@@ -14,7 +14,8 @@ def cli():
 
 @cli.command('ref')
 @click.option('-d', '--date', 'date',
-              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. '
+                   'If empty then today date used.')
 @click.option('-all', is_flag=True, help='Get all Refinance rates', type=click.BOOL)
 def ref(date, all):
     """ Refinance rate """
@@ -30,10 +31,12 @@ def ref(date, all):
 @click.argument('cur_from')
 @click.argument('cur_to')
 @click.option('-d', '--date', 'date',
-              help='Recalculation date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+              help='Conversion date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. '
+                   'If empty then today date used.')
 def conv(amount, cur_from, cur_to, date=''):
     """
-    Exchange rates \n
+    Currency converter
+
     Required parameters: \n
     AMOUNT: The amount from which we recalculate, for example: 100 \n
     CUR_FROM: The currency from which we are recalculating, for example: USD \n
@@ -51,7 +54,7 @@ def conv(amount, cur_from, cur_to, date=''):
     scale_from = float(data_from.loc['Cur_Scale'][0])
     scale_to = float(data_to.loc['Cur_Scale'][0])
 
-    amount_calc = amount * (rate_from * scale_to) / (rate_to * scale_from)
+    amount_calc = round(amount * (rate_from * scale_to) / (rate_to * scale_from), 2)
 
     info = [{'Amount from': amount, 'Currency from': str(cur_from).upper(), '=': '=', 'Amount into': amount_calc,
              'Currency into': str(cur_to).upper()}]
@@ -63,13 +66,14 @@ def conv(amount, cur_from, cur_to, date=''):
 @cli.command('rate')
 @click.argument('currency', required=False)
 @click.option('-d', '--date', 'date',
-              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121'
+                   'If empty then today date used.')
 def rate(currency='', date=''):
     """
     Exchange rates
 
     Optional argument:
-    CURRENCY: Currency for which we want to get the exchange rate. If empty then all exchange rates.
+    CURRENCY: Currency for which we want to get the exchange rate. If empty then retrieve all exchange rates.
     """
     info = []
 

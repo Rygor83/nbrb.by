@@ -8,7 +8,7 @@ from setuptools import setup, find_packages
 
 setup(
     name='nb',
-    version='0.01',
+    version='1.6',
     license='MIT',
     description="CMD. Info about exchange rates established by the National Bank of the Republic of Belarus",
 
