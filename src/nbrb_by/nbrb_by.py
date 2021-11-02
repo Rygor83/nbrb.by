@@ -62,24 +62,34 @@ def conv(amount, cur_from, cur_to, date=''):
 
 @cli.command('rate')
 @click.argument('currency', required=False)
-@click.option('-d', help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
-def rate(currency='', d=''):
+@click.option('-d', '--date', 'date',
+              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121')
+def rate(currency='', date=''):
     """
-    Currency converter
+    Exchange rates
 
-    Optional parameter:
-    CURRENCY: Currency for which we want to get the exchange rate.
+    Optional argument:
+    CURRENCY: Currency for which we want to get the exchange rate. If empty then all exchange rates.
     """
+    info = []
 
     api = Api()
 
-    df_temp = api.get_rates(currency, d)
+    df_temp = api.get_rates(currency, date)
 
-    df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
-    info = [
-        {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
-    df = pd.DataFrame(info)
-    df = df.set_index('Date')
+    if currency:
+        df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
+        info = [
+            {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
+        df = pd.DataFrame(info)
+        df = df.set_index('Date')
+    else:
+        df_temp['Date'] = pd.to_datetime(df_temp['Date']).dt.strftime('%d.%m.%Y')
+        for index, row in df_temp.iterrows():
+            info.append(
+                {'Currency': row.loc['Cur_Abbreviation'], f"Rate on {row.loc['Date']}": row.loc['Cur_OfficialRate']})
+        df = pd.DataFrame(info)
+        df = df.set_index('Currency')
 
     print(tabulate(df, headers='keys', tablefmt='psql'))
 
