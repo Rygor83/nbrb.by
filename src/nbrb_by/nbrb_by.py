@@ -95,6 +95,9 @@ def rate(currency='', date=''):
         df = pd.DataFrame(info)
         df = df.set_index('Currency')
 
+    if not currency:  # if currency is not supplied then we retrieve all currency - sort them
+        df = df.sort_values(by=['Currency'], ascending=True)
+
     print(tabulate(df, headers='keys', tablefmt='psql'))
 
 
