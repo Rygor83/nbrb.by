@@ -35,12 +35,12 @@ def test_api_get_function_9(api):
 
 
 def test_api_get_function_1(api):
-    func = api._get_function('USD', d='01.01.2021', to='31.12.2021')
+    func = api._get_function('USD', date_from='01.01.2021', date_to='31.12.2021')
     assert func == 1
 
 
 def test_api_get_function_2(api):
-    func = api._get_function('EUR', d='01.01.2021')
+    func = api._get_function('EUR', date_from='01.01.2021')
     assert func == 2
 
 
@@ -50,7 +50,7 @@ def test_api_get_function_3(api):
 
 
 def test_api_get_function_4(api):
-    func = api._get_function(d='01.01.2021')
+    func = api._get_function(date_from='01.01.2021')
     assert func == 4
 
 

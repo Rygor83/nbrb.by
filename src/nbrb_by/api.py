@@ -1,14 +1,26 @@
+"""
+API for obtaining: \n
+- the official exchange rate \n
+- the refinancing rate \n
+of the Belarusian ruble against foreign currencies established by the National Bank of the Republic of Belarus
+API helps: \n
+- https://www.nbrb.by/apihelp/exrates \n
+- https://www.nbrb.by/apihelp/refinancingrate \n
+"""
+
 import re
 import datetime
 import sys
-import pandas as pd
+from urllib.error import HTTPError
 import warnings
-import nbrb_by.config as config
+import pandas as pd
+import click
+from nbrb_by.config import Config
 
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
-class Api(object):
+class Api:
     """
     API for obtaining: \n
     - the official exchange rate \n
@@ -28,46 +40,54 @@ class Api(object):
     func = 0
 
     def __init__(self):
-        self.cfg = config.Config()
+        self.cfg = Config()
 
-    def get_rates(self, c, d, to=''):
-        func = self._get_function(c, d, to)
-        url_dict = self._get_api_rate_url(func, c, d)
+    def get_rates(self, currency, date_from, date_to=''):
+        """
+        Obtaining info about exchange rates
+
+        :param currency: currency
+        :param date_from: start date or single date
+        :param date_to: end date or no date
+        :return:
+        """
+        func = self._get_function(currency, date_from, date_to)
+        url_dict = self._get_api_rate_url(func, currency, date_from)
         return self._get_json(**url_dict)
 
-    def get_refinance(self, d, all):
+    def get_refinance(self, date, all_dates):
         """
         Obtaining info about refinance rate
 
-        :param d: date or no date
-        :param all: flag to obtain all rates from the beginning
+        :param date: date or no date
+        :param all_dates: flag to obtain all rates from the beginning
         :return: data frame with refinance rate info
         """
-        url_dict = self._get_api_refinance_url(d, all)
+        url_dict = self._get_api_refinance_url(date, all_dates)
         return self._get_json(**url_dict)
 
-    def _get_function(self, c='', d='', to='') -> int:
-        if c is not None and c.upper() == 'BYN':
+    def _get_function(self, currency='', date_from='', date_to='') -> int:
+        if currency is not None and currency.upper() == 'BYN':
             # Данные по валюте BYN, которая отстуствует на сайте нац. банка
 
             func = 9
         else:
-            if to:
+            if date_to:
                 # Курсы за определенный период:
                 # https://www.nbrb.by/API/ExRates/Rates/Dynamics/298?startDate=2016-7-1&endDate=2016-7-30
 
                 func = 1
-            elif c and d:
+            elif currency and date_from:
                 # Курс для определеной валюты на дату:
                 # https://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
 
                 func = 2
-            elif c:
+            elif currency:
                 # Курс для определенной валюты сегодня:
                 # https://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
 
                 func = 3
-            elif d:
+            elif date_from:
                 # Все курсы на определенную дату:
                 # https://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
 
@@ -80,14 +100,14 @@ class Api(object):
 
         return func
 
-    def _get_api_rate_url(self, func: int, c, d, to='') -> dict:
+    def _get_api_rate_url(self, func: int, currency, date_from, date_to='') -> dict:
         """
         Method to construct api request url for exchange rates.
 
         :param self:  self
         :param func: 1 integer id of function
-        :param c:    3-letter currency code
-        :param d:    date from in needed format
+        :param currency:    3-letter currency code
+        :param date:    date from in needed format
         :param to:   date to in needed format
         :return: url
         """
@@ -96,28 +116,28 @@ class Api(object):
             self.url = 'BYN'
             self.orient = 'index'
         elif func == 1:
-            date_from = self._parse_date(d, True)
-            date_to = self._parse_date(to, True)
-            currency_code = self.cfg.read(c, date_from)
+            date_from = self._parse_date(date_from, True)
+            date_to = self._parse_date(date_to, True)
+            currency_code = self.cfg.read(currency, date_from)
             self.url = self.API_BASE_RATE_URL + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
             self.orient = 'records'
         elif func == 2:
-            d = self._parse_date(d, True)
-            currency_code = self.cfg.read(c, d)
+            date_from = self._parse_date(date_from, True)
+            currency_code = self.cfg.read(currency, date_from)
             # Курс для определеной валюты на дату:
             # https://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
-            self.url = self.API_BASE_RATE_URL + f"/{currency_code}?onDate={d}"
+            self.url = self.API_BASE_RATE_URL + f"/{currency_code}?onDate={date_from}"
             self.orient = 'index'
         elif func == 3:
             # Курс для определенной валюты сегодня:
             # https://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
-            self.url = self.API_BASE_RATE_URL + f"/{c}?ParamMode=2"
+            self.url = self.API_BASE_RATE_URL + f"/{currency}?ParamMode=2"
             self.orient = 'index'
         elif func == 4:
-            d = self._parse_date(d, True)
+            date_from = self._parse_date(date_from, True)
             # Все курсы на определенную дату:
             # https://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
-            self.url = self.API_BASE_RATE_URL + f"?onDate={d}&Periodicity=0"
+            self.url = self.API_BASE_RATE_URL + f"?onDate={date_from}&Periodicity=0"
             self.orient = 'records'
         elif func == 5:
             # Все курсы на сегодня:
@@ -129,7 +149,7 @@ class Api(object):
 
         return {"url": self.url, "orient": self.orient}
 
-    def _get_api_refinance_url(self, d, all):
+    def _get_api_refinance_url(self, date, all_dates):
         """
         Method to construct api request url for refinancing rate.
         :param self:  self
@@ -137,10 +157,10 @@ class Api(object):
         :param all:  flag to obtain all rates
         :return: url
         """
-        if d:
-            d = self._parse_date(d, True)
-            self.url = self.API_BASE_REF_URL + f"?onDate={d}"
-        elif all:
+        if date:
+            date = self._parse_date(date, True)
+            self.url = self.API_BASE_REF_URL + f"?onDate={date}"
+        elif all_dates:
             self.url = self.API_BASE_REF_URL
         else:
             today = self._parse_date()
@@ -152,13 +172,17 @@ class Api(object):
 
     def _get_json(self, url, orient):
         if url == 'BYN':
-            frame = {"Cur_Abbreviation": "BYN", "Cur_ID": 1, "Cur_Name": "Беларуский рубль", "Cur_OfficialRate": 1,
+            frame = {"Cur_Abbreviation": "BYN", "Cur_ID": 1, "Cur_Name": "Belarusian ruble", "Cur_OfficialRate": 1,
                      "Cur_Scale": 1, "Date": "2016-07-05T00:00:00"}
-            df = pd.DataFrame.from_dict(frame, orient=orient)
+            nbrb_frame = pd.DataFrame.from_dict(frame, orient=orient)
         else:
-            df = pd.read_json(url, orient)
+            try:
+                nbrb_frame = pd.read_json(url, orient)
+            except HTTPError as err:
+                click.echo(f"{err}")
+                sys.exit()
 
-        return df
+        return nbrb_frame
 
     def _parse_date(self, date: str = '', nbrb: bool = '') -> str:
         """
