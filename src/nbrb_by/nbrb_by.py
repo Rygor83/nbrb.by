@@ -27,6 +27,7 @@ def ref(date, all_dates):
     """ Refinance rate """
     api = Api()
     refinance_frame = api.get_refinance(date, all_dates)
+    pyperclip.copy(refinance_frame.loc[0].Value)
     refinance_frame['Date'] = pd.to_datetime(refinance_frame['Date']).dt.strftime('%d.%m.%Y')
     refinance_frame = refinance_frame.set_index('Date')
     print(tabulate(refinance_frame, headers='keys', tablefmt='psql'))
