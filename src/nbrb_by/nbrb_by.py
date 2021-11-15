@@ -6,8 +6,8 @@ against foreign currencies established by the National Bank of the Republic of B
 import click
 import pandas as pd
 from tabulate import tabulate
-from nbrb_by.api import Api
 import pyperclip
+from nbrb_by.api import Api
 
 
 @click.group()
@@ -91,9 +91,7 @@ def rate(currency='', date=''):
 
     if currency:
         df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
-
         pyperclip.copy(df_temp.loc['Cur_OfficialRate'][0])
-        
         info = [
             {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
         exchange_rate_frame = pd.DataFrame(info)
