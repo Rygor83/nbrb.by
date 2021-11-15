@@ -2,3 +2,4 @@ click
 pandas
 appdirs
 tabulate
+pyperclip

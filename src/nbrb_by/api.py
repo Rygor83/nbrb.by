@@ -20,6 +20,9 @@ from nbrb_by.config import Config
 warnings.simplefilter(action='ignore', category=FutureWarning)
 
 
+# TODO: Добавить logging, чтобы выводить параметры дат, url и другие для анализа
+
+
 class Api:
     """
     API for obtaining: \n

@@ -7,6 +7,7 @@ import click
 import pandas as pd
 from tabulate import tabulate
 from nbrb_by.api import Api
+import pyperclip
 
 
 @click.group()
@@ -60,6 +61,8 @@ def conv(amount, cur_from, cur_to, date=''):
     scale_to = float(data_to.loc['Cur_Scale'][0])
 
     amount_calc = round(amount * (rate_from * scale_to) / (rate_to * scale_from), 2)
+
+    pyperclip.copy(amount_calc)
 
     info = [{'Amount from': amount, 'Currency from': str(cur_from).upper(), '=': '=', 'Amount into': amount_calc,
              'Currency into': str(cur_to).upper()}]

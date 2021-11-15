@@ -2,5 +2,6 @@ click
 pandas
 appdirs
 tabulate
+pyperclip
 pytest
 setuptools
