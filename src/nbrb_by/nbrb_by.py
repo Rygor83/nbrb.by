@@ -8,6 +8,7 @@ import pandas as pd
 from tabulate import tabulate
 import pyperclip
 from nbrb_by.api import Api
+from nbrb_by.config import Config
 
 
 @click.group()
@@ -146,6 +147,42 @@ def rate(currency: str = "", date: str = "") -> None:
         )
 
     print(tabulate(exchange_rate_frame, headers="keys", tablefmt="psql"))
+
+
+@cli.command("config")
+@click.option(
+    "-reload",
+    "reload_config",
+    type=click.BOOL,
+    is_flag=True,
+    help="Reload list of currencies",
+)
+@click.option(
+    "-open",
+    "open_config",
+    type=click.BOOL,
+    is_flag=True,
+    help="Open config",
+)
+def config(reload_config: bool, open_config: bool) -> None:
+    """
+    Operations with config
+
+    1. Reload from nbrb.by list of currencies and their parameters
+    2. Open config
+
+    """
+    cfg = Config()
+    if reload_config:
+        ret = cfg.create()
+        if ret is None:
+            click.echo("List of currencies is reloaded")
+        else:
+            click.echo(ret)
+    elif open_config:
+        cfg.open_config()
+    else:
+        click.echo("Enter subcommand: -reload or -open")
 
 
 if __name__ == "__main__":

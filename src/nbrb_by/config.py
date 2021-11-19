@@ -12,6 +12,7 @@ import errno
 import click
 from appdirs import user_data_dir
 import pandas as pd
+from typing import Optional
 
 
 class Config:
@@ -24,7 +25,11 @@ class Config:
 
         if not os.path.isfile(self.config_path):
             click.echo("Загружаю справочник валют")
-            self.create()
+            ret = self.create()
+            if ret is None:
+                click.echo("List of currencies is reloaded")
+            else:
+                click.echo(ret)
 
     def read(self, currency: str, datum: str) -> str:
         """Return currency information object after reading configuration file"""
@@ -53,13 +58,15 @@ class Config:
         cur_id = info.iloc[0]["Cur_ID"]
         return cur_id
 
-    def create(self) -> None:
+    def create(self) -> Optional[str]:
         """Creating a configuration file"""
 
         url = "https://www.nbrb.by/API/ExRates/Currencies"
         orient = "records"
         json_ini = pd.read_json(url, orient=orient)
-        json_ini.to_json(self.config_path, "records")
+        ret = json_ini.to_json(self.config_path, "records")
+
+        return ret
 
     def set_path(self, path: pathlib.Path) -> pathlib.Path:
         """Setting path for saving config file"""
