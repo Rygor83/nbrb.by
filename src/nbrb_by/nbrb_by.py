@@ -1,5 +1,5 @@
 """
-Windows Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
+Windows/Linux Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
 against foreign currencies established by the National Bank of the Republic of Belarus
 """
 
@@ -18,29 +18,41 @@ def cli():
     """
 
 
-@cli.command('ref')
-@click.option('-d', '--date', 'date',
-              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. '
-                   'If empty then today date used.')
-@click.option('-all', 'all_dates', is_flag=True, help='Get all Refinance rates', type=click.BOOL)
-def ref(date, all_dates):
-    """ Refinance rate """
+@cli.command("ref")
+@click.option(
+    "-d",
+    "--date",
+    "date",
+    help="Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. "
+         "If empty then today date used.",
+)
+@click.option(
+    "-all", "all_dates", is_flag=True, help="Get all Refinance rates", type=click.BOOL
+)
+def ref(date: str, all_dates: bool) -> None:
+    """Refinance rate"""
     api = Api()
     refinance_frame = api.get_refinance(date, all_dates)
     pyperclip.copy(refinance_frame.loc[0].Value)
-    refinance_frame['Date'] = pd.to_datetime(refinance_frame['Date']).dt.strftime('%d.%m.%Y')
-    refinance_frame = refinance_frame.set_index('Date')
-    print(tabulate(refinance_frame, headers='keys', tablefmt='psql'))
+    refinance_frame["Date"] = pd.to_datetime(refinance_frame["Date"]).dt.strftime(
+        "%d.%m.%Y"
+    )
+    refinance_frame = refinance_frame.set_index("Date")
+    print(tabulate(refinance_frame, headers="keys", tablefmt="psql"))
 
 
-@cli.command('conv')
-@click.argument('amount')
-@click.argument('cur_from')
-@click.argument('cur_to')
-@click.option('-d', '--date', 'date',
-              help='Conversion date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. '
-                   'If empty then today date used.')
-def conv(amount, cur_from, cur_to, date=''):
+@cli.command("conv")
+@click.argument("amount")
+@click.argument("cur_from")
+@click.argument("cur_to")
+@click.option(
+    "-d",
+    "--date",
+    "date",
+    help="Conversion date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121. "
+         "If empty then today date used.",
+)
+def conv(amount: float, cur_from: str, cur_to: str, date: str = "") -> None:
     """
     Currency converter
 
@@ -56,28 +68,39 @@ def conv(amount, cur_from, cur_to, date=''):
     data_to = api.get_rates(cur_to, date)
 
     amount = float(amount)
-    rate_from = float(data_from.loc['Cur_OfficialRate'][0])
-    rate_to = float(data_to.loc['Cur_OfficialRate'][0])
-    scale_from = float(data_from.loc['Cur_Scale'][0])
-    scale_to = float(data_to.loc['Cur_Scale'][0])
+    rate_from = float(data_from.loc["Cur_OfficialRate"][0])
+    rate_to = float(data_to.loc["Cur_OfficialRate"][0])
+    scale_from = float(data_from.loc["Cur_Scale"][0])
+    scale_to = float(data_to.loc["Cur_Scale"][0])
 
     amount_calc = round(amount * (rate_from * scale_to) / (rate_to * scale_from), 2)
 
     pyperclip.copy(amount_calc)
 
-    info = [{'Amount from': amount, 'Currency from': str(cur_from).upper(), '=': '=', 'Amount into': amount_calc,
-             'Currency into': str(cur_to).upper()}]
+    info = [
+        {
+            "Amount from": amount,
+            "Currency from": str(cur_from).upper(),
+            "=": "=",
+            "Amount into": amount_calc,
+            "Currency into": str(cur_to).upper(),
+        }
+    ]
     conversion_frame = pd.DataFrame(info)
-    conversion_frame = conversion_frame.set_index('Amount from')
-    print(tabulate(conversion_frame, headers='keys', tablefmt='psql'))
+    conversion_frame = conversion_frame.set_index("Amount from")
+    print(tabulate(conversion_frame, headers="keys", tablefmt="psql"))
 
 
-@cli.command('rate')
-@click.argument('currency', required=False)
-@click.option('-d', '--date', 'date',
-              help='Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121'
-                   'If empty then today date used.')
-def rate(currency='', date=''):
+@cli.command("rate")
+@click.argument("currency", required=False)
+@click.option(
+    "-d",
+    "--date",
+    "date",
+    help="Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121"
+         "If empty then today date used.",
+)
+def rate(currency: str = "", date: str = "") -> None:
     """
     Exchange rates
 
@@ -91,25 +114,39 @@ def rate(currency='', date=''):
     df_temp = api.get_rates(currency, date)
 
     if currency:
-        df_temp.loc['Date'] = pd.to_datetime(df_temp.loc['Date']).dt.strftime('%d.%m.%Y')
-        pyperclip.copy(df_temp.loc['Cur_OfficialRate'][0])
+        df_temp.loc["Date"] = pd.to_datetime(df_temp.loc["Date"]).dt.strftime(
+            "%d.%m.%Y"
+        )
+        pyperclip.copy(df_temp.loc["Cur_OfficialRate"][0])
         info = [
-            {'Date': df_temp.loc['Date'][0], f'Rate {str(currency).upper()}': df_temp.loc['Cur_OfficialRate'][0]}]
+            {
+                "Date": df_temp.loc["Date"][0],
+                f"Rate {str(currency).upper()}": df_temp.loc["Cur_OfficialRate"][0],
+            }
+        ]
         exchange_rate_frame = pd.DataFrame(info)
-        exchange_rate_frame = exchange_rate_frame.set_index('Date')
+        exchange_rate_frame = exchange_rate_frame.set_index("Date")
     else:
-        df_temp['Date'] = pd.to_datetime(df_temp['Date']).dt.strftime('%d.%m.%Y')
+        df_temp["Date"] = pd.to_datetime(df_temp["Date"]).dt.strftime("%d.%m.%Y")
         for index, row in df_temp.iterrows():
             info.append(
-                {'Currency': row.loc['Cur_Abbreviation'], f"Rate on {row.loc['Date']}": row.loc['Cur_OfficialRate']})
+                {
+                    "Currency": row.loc["Cur_Abbreviation"],
+                    f"Rate on {row.loc['Date']}": row.loc["Cur_OfficialRate"],
+                }
+            )
         exchange_rate_frame = pd.DataFrame(info)
-        exchange_rate_frame = exchange_rate_frame.set_index('Currency')
+        exchange_rate_frame = exchange_rate_frame.set_index("Currency")
 
-    if not currency:  # if currency is not supplied then we retrieve all currency - sort them
-        exchange_rate_frame = exchange_rate_frame.sort_values(by=['Currency'], ascending=True)
+    if (
+            not currency
+    ):  # if currency is not supplied then we retrieve all currency - sort them
+        exchange_rate_frame = exchange_rate_frame.sort_values(
+            by=["Currency"], ascending=True
+        )
 
-    print(tabulate(exchange_rate_frame, headers='keys', tablefmt='psql'))
+    print(tabulate(exchange_rate_frame, headers="keys", tablefmt="psql"))
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     cli()

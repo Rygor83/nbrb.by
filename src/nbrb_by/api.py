@@ -13,11 +13,12 @@ import datetime
 import sys
 from urllib.error import HTTPError
 import warnings
+from typing import Dict
 import pandas as pd
 import click
 from nbrb_by.config import Config
 
-warnings.simplefilter(action='ignore', category=FutureWarning)
+warnings.simplefilter(action="ignore", category=FutureWarning)
 
 
 # TODO: Добавить logging, чтобы выводить параметры дат, url и другие для анализа
@@ -34,18 +35,18 @@ class Api:
     - https://www.nbrb.by/apihelp/refinancingrate \n
     """
 
-    API_BASE_RATE_URL = 'https://www.nbrb.by/API/ExRates/Rates'
-    API_BASE_REF_URL = 'https://www.nbrb.by/API/RefinancingRate'
+    API_BASE_RATE_URL = "https://www.nbrb.by/API/ExRates/Rates"
+    API_BASE_REF_URL = "https://www.nbrb.by/API/RefinancingRate"
     MIN_YEAR = 1991
-    cfg = ""
-    url = ""
-    orient = ""
-    func = 0
+    cfg: Config
+    url: str = ""
+    orient: str = ""
+    func: int = 0
 
     def __init__(self):
         self.cfg = Config()
 
-    def get_rates(self, currency, date_from, date_to=''):
+    def get_rates(self, currency: str, date_from: str, date_to: str = ""):
         """
         Obtaining info about exchange rates
 
@@ -58,7 +59,7 @@ class Api:
         url_dict = self._get_api_rate_url(func, currency, date_from)
         return self._get_json(**url_dict)
 
-    def get_refinance(self, date, all_dates):
+    def get_refinance(self, date: str, all_dates: bool = False):
         """
         Obtaining info about refinance rate
 
@@ -69,8 +70,10 @@ class Api:
         url_dict = self._get_api_refinance_url(date, all_dates)
         return self._get_json(**url_dict)
 
-    def _get_function(self, currency='', date_from='', date_to='') -> int:
-        if currency is not None and currency.upper() == 'BYN':
+    def _get_function(
+            self, currency: str = "", date_from: str = "", date_to: str = ""
+    ) -> int:
+        if currency is not None and currency.upper() == "BYN":
             # Данные по валюте BYN, которая отстуствует на сайте нац. банка
 
             func = 9
@@ -103,7 +106,9 @@ class Api:
 
         return func
 
-    def _get_api_rate_url(self, func: int, currency, date_from, date_to='') -> dict:
+    def _get_api_rate_url(
+            self, func: int, currency: str, date_from: str, date_to: str = ""
+    ) -> Dict[str, str]:
         """
         Method to construct api request url for exchange rates.
 
@@ -116,43 +121,48 @@ class Api:
         """
 
         if func == 9:
-            self.url = 'BYN'
-            self.orient = 'index'
+            self.url = "BYN"
+            self.orient = "index"
         elif func == 1:
             date_from = self._parse_date(date_from, True)
             date_to = self._parse_date(date_to, True)
             currency_code = self.cfg.read(currency, date_from)
-            self.url = self.API_BASE_RATE_URL + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
-            self.orient = 'records'
+            self.url = (
+                    self.API_BASE_RATE_URL
+                    + f"/Dynamics/{currency_code}?startDate={date_from}&endDate={date_to}"
+            )
+            self.orient = "records"
         elif func == 2:
             date_from = self._parse_date(date_from, True)
             currency_code = self.cfg.read(currency, date_from)
             # Курс для определеной валюты на дату:
             # https://www.nbrb.by/API/ExRates/Rates/298?onDate=2016-7-5
             self.url = self.API_BASE_RATE_URL + f"/{currency_code}?onDate={date_from}"
-            self.orient = 'index'
+            self.orient = "index"
         elif func == 3:
             # Курс для определенной валюты сегодня:
             # https://www.nbrb.by/API/ExRates/Rates/USD?ParamMode=2
             self.url = self.API_BASE_RATE_URL + f"/{currency}?ParamMode=2"
-            self.orient = 'index'
+            self.orient = "index"
         elif func == 4:
             date_from = self._parse_date(date_from, True)
             # Все курсы на определенную дату:
             # https://www.nbrb.by/API/ExRates/Rates?onDate=2016-7-6&Periodicity=0
             self.url = self.API_BASE_RATE_URL + f"?onDate={date_from}&Periodicity=0"
-            self.orient = 'records'
+            self.orient = "records"
         elif func == 5:
             # Все курсы на сегодня:
             # https://www.nbrb.by/API/ExRates/Rates?Periodicity=0
-            self.url = self.API_BASE_RATE_URL + '?Periodicity=0'
-            self.orient = 'records'
+            self.url = self.API_BASE_RATE_URL + "?Periodicity=0"
+            self.orient = "records"
         else:
             pass
 
         return {"url": self.url, "orient": self.orient}
 
-    def _get_api_refinance_url(self, date, all_dates):
+    def _get_api_refinance_url(
+            self, date: str, all_dates: bool = False
+    ) -> Dict[str, str]:
         """
         Method to construct api request url for refinancing rate.
         :param self:  self
@@ -169,14 +179,20 @@ class Api:
             today = self._parse_date()
             self.url = self.API_BASE_REF_URL + f"?onDate={today}"
 
-        self.orient = 'records'
+        self.orient = "records"
 
         return {"url": self.url, "orient": self.orient}
 
-    def _get_json(self, url, orient):
-        if url == 'BYN':
-            frame = {"Cur_Abbreviation": "BYN", "Cur_ID": 1, "Cur_Name": "Belarusian ruble", "Cur_OfficialRate": 1,
-                     "Cur_Scale": 1, "Date": "2016-07-05T00:00:00"}
+    def _get_json(self, url: str, orient: str) -> pd.DataFrame:
+        if url == "BYN":
+            frame = {
+                "Cur_Abbreviation": "BYN",
+                "Cur_ID": 1,
+                "Cur_Name": "Belarusian ruble",
+                "Cur_OfficialRate": 1,
+                "Cur_Scale": 1,
+                "Date": "2016-07-05T00:00:00",
+            }
             nbrb_frame = pd.DataFrame.from_dict(frame, orient=orient)
         else:
             try:
@@ -187,7 +203,7 @@ class Api:
 
         return nbrb_frame
 
-    def _parse_date(self, date: str = '', nbrb: bool = '') -> str:
+    def _parse_date(self, date: str = "", nbrb: bool = False) -> str:
         """
         Форматирует полученную на входе дату или для сайта nbrb.by, или же дату в нормальном виде с разделителями точка.
         Допустимый ввод данных: 01.01.19 (допустимый разделитель ./), 01.01.2019, 010119, 01012019
@@ -197,29 +213,37 @@ class Api:
         :return: дата, в зависимости от параметра nbrb
         """
 
-        delimiters = ['.', '/', '-']
+        delimiters = [".", "/", "-"]
 
         if any(delimiter in date for delimiter in delimiters):
-            date = re.sub('[-.:/]', '.', date)
+            date = re.sub("[-.:/]", ".", date)
             if nbrb:
-                date = datetime.datetime.strptime(date, '%d.%m.%Y').strftime('%Y-%m-%d')
+                date = datetime.datetime.strptime(date, "%d.%m.%Y").strftime("%Y-%m-%d")
         else:
             length = len(date)
             if length == 6:
                 if nbrb:
-                    date = datetime.datetime.strptime(date, '%d%m%y').strftime('%Y-%m-%d')
+                    date = datetime.datetime.strptime(date, "%d%m%y").strftime(
+                        "%Y-%m-%d"
+                    )
                 else:
-                    date = datetime.datetime.strptime(date, '%d%m%y').strftime('%d.%m.%Y')
+                    date = datetime.datetime.strptime(date, "%d%m%y").strftime(
+                        "%d.%m.%Y"
+                    )
             elif length == 8:
                 if nbrb:
-                    date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%Y-%m-%d')
+                    date = datetime.datetime.strptime(date, "%d%m%Y").strftime(
+                        "%Y-%m-%d"
+                    )
                 else:
-                    date = datetime.datetime.strptime(date, '%d%m%Y').strftime('%d.%m.%Y')
+                    date = datetime.datetime.strptime(date, "%d%m%Y").strftime(
+                        "%d.%m.%Y"
+                    )
             elif length == 0:
-                date = datetime.datetime.today().strftime('%Y-%m-%d')
+                date = datetime.datetime.today().strftime("%Y-%m-%d")
             else:
-                print('Не правильная дата')
-                input('нажмите Enter ... ')
+                print("Не правильная дата")
+                input("нажмите Enter ... ")
                 sys.exit()
 
         return date

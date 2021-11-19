@@ -18,7 +18,7 @@ setup(
     packages=find_packages(where='src'),
     package_dir={'': 'src'},
 
-    install_requires=['click', 'pandas', ],
+    install_requires=['click', 'pandas', 'tabulate', 'pyperclip', 'appdirs'],
 
     entry_points={
         'console_scripts': [

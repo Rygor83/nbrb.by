@@ -1,9 +1,15 @@
 # nb
 
-[![Python 3.6+](https://upload.wikimedia.org/wikipedia/commons/8/8c/Blue_Python_3.6%2B_Shield_Badge.svg)](https://www.python.org/downloads/release/python-360/) [![Windows](https://svgshare.com/i/ZhY.svg)](https://github.com/Rygor83/kalc) [![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://choosealicense.com/licenses/mit/)
+[![Python 3.6+](https://upload.wikimedia.org/wikipedia/commons/8/8c/Blue_Python_3.6%2B_Shield_Badge.svg)](https://www.python.org/downloads/release/python-360/)
 
-Windows Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble against
-foreign currencies established by the National Bank of the Republic of Belarus
+[![Windows](https://svgshare.com/i/ZhY.svg)](https://github.com/Rygor83/kalc) [![Linux](https://svgshare.com/i/Zhy.svg)](https://github.com/Rygor83/kalc)
+
+[![GitHub license](https://img.shields.io/github/license/Naereen/StrapDown.js.svg)](https://choosealicense.com/licenses/mit/)
+
+Windows/Linux Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
+against foreign currencies established by the National Bank of the Republic of Belarus
+
+Linux: tested on Windows 10 with WSL Ubuntu and Pycharm.
 
 ## Installation
 
