@@ -10,8 +10,36 @@ import pyperclip
 from nbrb_by.api import Api
 from nbrb_by.config import Config
 
+# TODO: Сделать возможность переходить на сайт нац.банка
 
-@click.group()
+CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
+
+
+def open_site_ref(ctx, param, value):
+    """
+    Open configuration file for editing
+    """
+    if not value or ctx.resilient_parsing:
+        return
+
+    click.launch(url="https://www.nbrb.by/statistics/monetarypolicyinstruments/refinancingrate")
+
+    ctx.exit()
+
+
+def open_site_rate(ctx, param, value):
+    """
+    Open configuration file for editing
+    """
+    if not value or ctx.resilient_parsing:
+        return
+
+    click.launch(url="https://www.nbrb.by/statistics/rates/ratesdaily.asp")
+
+    ctx.exit()
+
+
+@click.group(context_settings=CONTEXT_SETTINGS)
 def cli():
     """
     Windows Command line for obtaining the official exchange rate and the refinancing rate of the Belarusian ruble
@@ -30,6 +58,9 @@ def cli():
 @click.option(
     "-all", "all_dates", is_flag=True, help="Get all Refinance rates", type=click.BOOL
 )
+@click.option('-w', is_flag=True, callback=open_site_ref, expose_value=False,
+              is_eager=True,
+              help='Open national bank website with information about refinance rates')
 def ref(date: str, all_dates: bool) -> None:
     """Refinance rate"""
     api = Api()
@@ -55,12 +86,13 @@ def ref(date: str, all_dates: bool) -> None:
 )
 def conv(amount: float, cur_from: str, cur_to: str, date: str = "") -> None:
     """
+    \b
     Currency converter
-
-    Required parameters: \n
-    AMOUNT: The amount from which we recalculate, for example: 100 \n
-    CUR_FROM: The currency from which we are recalculating, for example: USD \n
-    CUR_TO: Currency to be converted into, for example, EUR \n
+    \b
+    Required parameters:
+    AMOUNT: The amount from which we recalculate, for example: 100
+    CUR_FROM: The currency from which we are recalculating, for example: USD
+    CUR_TO: Currency to be converted into, for example, EUR
     Example: nb conv 100 usd eur
     """
     api = Api()
@@ -101,12 +133,20 @@ def conv(amount: float, cur_from: str, cur_to: str, date: str = "") -> None:
     help="Get a rate on a date. Possible values: 01.01.2021, 01/01/2021, 01-01-2021, 01012021, 010121"
          "If empty then today date used.",
 )
+@click.option(
+    '-w', is_flag=True, callback=open_site_rate, expose_value=False,
+    is_eager=True,
+    help='Open national bank website with information about exchange rates'
+)
 def rate(currency: str = "", date: str = "") -> None:
     """
+    \b
     Exchange rates
-
+    \b
     Optional argument:
-    CURRENCY: Currency for which we want to get the exchange rate. If empty then retrieve all exchange rates.
+    CURRENCY: Currency for which we want to get the exchange rate.
+    \b
+    If empty then retrieve all exchange rates.
     """
     info = []
 
@@ -166,11 +206,11 @@ def rate(currency: str = "", date: str = "") -> None:
 )
 def config(reload_config: bool, open_config: bool) -> None:
     """
+    \b
     Operations with config
-
+    \b
     1. Reload from nbrb.by list of currencies and their parameters
     2. Open config
-
     """
     cfg = Config()
     if reload_config:

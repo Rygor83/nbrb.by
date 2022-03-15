@@ -52,10 +52,11 @@ Argument optional: CURRENCY: Currency for which we want to get the exchange rate
 Options:
   -d, --date TEXT  Get a rate on a date. Possible values: 01.01.2021,
                    01/01/2021, 01-01-2021, 01012021, 010121. If empty then today date used.
+  -w               Open national bank website with information about exchange rates
   --help           Show this message and exit.
 ```
 
-![nb rate commands](resources/images/nb_rate_commands.jpg)
+![nb rate commands](docs/resources/images/nb_rate_commands.jpg)
 
 ### Currency converter
 
@@ -78,7 +79,7 @@ Options:
   --help           Show this message and exit.
 ```
 
-![nb conv commands](resources/images/nb_conv_commands.jpg)
+![nb conv commands](docs/resources/images/nb_conv_commands.jpg)
 
 ### Refinance rate
 
@@ -91,10 +92,11 @@ Options:
   -d, --date TEXT  Get a rate on a date. Possible values: 01.01.2021,
                    01/01/2021, 01-01-2021, 01012021, 010121. If empty then today date used
   -all             Get all Refinance rates
+  -w               Open national bank website with information about refinance rates
   --help           Show this message and exit.
 ```
 
-![nb ref commands](resources/images/nb_ref_commands.jpg)
+![nb ref commands](docs/resources/images/nb_ref_commands.jpg)
 
 ## API help
 
